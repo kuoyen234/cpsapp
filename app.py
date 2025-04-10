@@ -132,8 +132,8 @@ def upload_form():
                         "total_quantity": int(row['Total Quantity']),
                         "color": row['Color'],
                         "code": code,
-                        "upload_date": datetime.utcnow().isoformat(),
-                        "source_file": filename
+                        "source_file": filename,
+                        "upload_date": datetime.utcnow().isoformat()
                     }
 
                     supabase.table("products").insert(data).execute()
@@ -141,21 +141,39 @@ def upload_form():
             except Exception as e:
                 message = f"❌ Upload failed: {str(e)}"
 
-    return render_template_string('''
+    return render_template_string("""
     <html>
         <head>
             <title>Upload Product Excel</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         </head>
         <body class="container py-5">
-            <a href="/" class="btn btn-link mb-3">← Back to Home</a>
-          
+            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+                <div class="container-fluid">
+                    <a class="navbar-brand" href="/">🧾 CPSApp</a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="mainNavbar">
+                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                            <li class="nav-item">
+                                <a class="nav-link" href="/upload-form">📤 Upload</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/search-form">🔍 Search & Delete</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
 
             <h2 class="mb-4">📤 Upload Product Excel File</h2>
             {% if message %}
                 <div class="alert alert-info">{{ message }}</div>
             {% endif %}
-            <form action="/upload-form" method="post" enctype="multipart/form-data">
+            <form method="post" enctype="multipart/form-data">
                 <div class="mb-3">
                     <input class="form-control" type="file" name="file" required>
                 </div>
@@ -163,7 +181,7 @@ def upload_form():
             </form>
         </body>
     </html>
-    ''', message=message)
+    """, message=message)
 
 
 @app.route('/delete/<row_id>', methods=['POST'])
@@ -217,8 +235,9 @@ def search_form():
     <html>
         <head>
             <title>Search Products</title>
-            
+            <meta name="viewport" content="width=device-width, initial-scale=1">
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
             <script>
                 setTimeout(function() {
                     const alert = document.querySelector('.alert');
@@ -230,8 +249,25 @@ def search_form():
             </script>
         </head>
         <body class="container py-5">
-            <a href="/" class="btn btn-link mb-3">← Back to Home</a>
-            
+            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+                <div class="container-fluid">
+                    <a class="navbar-brand" href="/">🧾 CPSApp</a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="mainNavbar">
+                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                            <li class="nav-item">
+                                <a class="nav-link" href="/upload-form">📤 Upload</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/search-form">🔍 Search & Delete</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
             <h2 class="mb-4">🔎 Search Products</h2>
 
             {% if message == 'deleted' %}
@@ -289,7 +325,6 @@ def search_form():
                                         <button class="btn btn-sm btn-danger">Delete</button>
                                     </form>
                                 </td>
-                                <td><code>{{ row['id'] }}</code></td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -301,19 +336,25 @@ def search_form():
         </body>
     </html>
     """, results=results, query=query, message=message, filename=filename, unique_files=unique_files)
+
 @app.route('/')
 def home():
     return render_template_string("""
     <html>
         <head>
             <title>Control Panel</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         </head>
         <body>
             <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
                 <div class="container-fluid">
                     <a class="navbar-brand" href="/">🧾 CPSApp</a>
-                    <div class="collapse navbar-collapse">
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="mainNavbar">
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                             <li class="nav-item">
                                 <a class="nav-link" href="/upload-form">📤 Upload</a>
@@ -333,6 +374,7 @@ def home():
         </body>
     </html>
     """)
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
