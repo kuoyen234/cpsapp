@@ -157,12 +157,54 @@ def upload_form():
                     }
 
                     supabase.table("products").insert(data).execute()
+
                 message = "✅ Upload and insert successful!"
             except Exception as e:
                 message = f"❌ Upload failed: {str(e)}"
 
-    return render_template_string(...  # keep your HTML here, no need to modify it
-    , message=message)
+    return render_template_string("""
+    <html>
+        <head>
+            <title>Upload Product Excel</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        </head>
+        <body class="container py-5">
+            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+                <div class="container-fluid">
+                    <a class="navbar-brand" href="/">🧾 CPSApp</a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="mainNavbar">
+                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                            <li class="nav-item">
+                                <a class="nav-link" href="/upload-form">📤 Upload</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/search-form">🔍 Search & Delete</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            <h2 class="mb-4">📤 Upload Product Excel File</h2>
+            {% if message %}
+                <div class="alert alert-info">{{ message }}</div>
+            {% endif %}
+            <form method="post" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <input class="form-control" type="file" name="file" required>
+                </div>
+                <button class="btn btn-primary" type="submit">Upload File</button>
+            </form>
+        </body>
+    </html>
+    """, message=message)
+
+
 
 
 @app.route('/delete/<row_id>', methods=['POST'])
@@ -398,5 +440,5 @@ def get_products():
 
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5001))
     app.run(host='0.0.0.0', port=port)
