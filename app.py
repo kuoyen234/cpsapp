@@ -35,6 +35,8 @@ def upload_file():
 
     try:
         df = pd.read_excel(filepath, sheet_name='Master')
+        from openpyxl import load_workbook
+        wb = load_workbook(filepath, data_only=True)    
 
         for _, row in df.iterrows():
             code_raw = str(row['Code'])
@@ -48,7 +50,8 @@ def upload_file():
                 "color": row['Color'],
                 "code": code,
                 "upload_date": datetime.utcnow().isoformat(),
-                "source_file": filename
+                "source_file": filename,
+                "measurements": measurements
             }
 
             supabase.table("products").insert(data).execute()
