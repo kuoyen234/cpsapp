@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template_string, redirect
 from flask import redirect, url_for
+from openpyxl import load_workbook
 
 
 # === Supabase Config ===
@@ -306,28 +307,33 @@ def search_form():
             {% if results %}
             <div class="table-responsive">
                 <table class="table table-bordered align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            {% for key in results[0].keys() %}
-                                <th>{{ key }}</th>
-                            {% endfor %}
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in results %}
-                            <tr>
-                                {% for value in row.values() %}
-                                    <td>{{ value }}</td>
-                                {% endfor %}
-                                <td>
-                                    <form method="post" action="/delete/{{ row['id'] }}" onsubmit="return confirm('Delete this row?');">
-                                        <button class="btn btn-sm btn-danger">Delete</button>
-                                    </form>
-                                </td>
-                            </tr>
+                <thead class="table-light">
+                    <tr>
+                        {% for key in results[0].keys() %}
+                            {% if key != 'id' and key != 'upload_date' %}
+                                <th>{{ key.replace('_', ' ').title() }}</th>
+                            {% endif %}
                         {% endfor %}
-                    </tbody>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in results %}
+                        <tr>
+                            {% for key, value in row.items() %}
+                                {% if key != 'id' and key != 'upload_date' %}
+                                    <td>{{ value }}</td>
+                                {% endif %}
+                            {% endfor %}
+                            <td>
+                                <form method="post" action="/delete/{{ row['id'] }}" onsubmit="return confirm('Delete this row?');">
+                                    <button class="btn btn-sm btn-danger">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+
                 </table>
             </div>
             {% elif query %}
@@ -374,6 +380,41 @@ def home():
         </body>
     </html>
     """)
+
+def extract_measurements(sheet):
+    """Extract and concatenate measurements from cells H4, H5, H6"""
+    values = []
+    for row in [4, 5, 6]:
+        cell_value = sheet[f'H{row}']
+        if cell_value and cell_value.value:
+            values.append(str(cell_value.value).strip())
+    return ', '.join(values)  # Join all non-empty values into one string
+
+def process_product_tab(sheet, product_name):
+    # Example: existing logic to extract other product info...
+
+    measurements = extract_measurements(sheet)
+
+    product_data = {
+        'name': product_name,
+        # 'other_field': value,
+        'measurements': measurements,
+    }
+
+    return product_data
+
+@app.route('/get-products')
+def get_products():
+    products = supabase.table('products').select("*").execute().data
+
+    filtered = []
+    for p in products:
+        # Remove ID and Upload Date
+        p.pop('id', None)
+        p.pop('upload_date', None)
+        filtered.append(p)
+
+    return jsonify(filtered)
 
 
 if __name__ == '__main__':
