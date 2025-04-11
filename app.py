@@ -42,6 +42,13 @@ def upload_file():
             code_raw = str(row['Code'])
             code = code_raw.replace("Code:", "").strip()
 
+            # 🔍 Extract measurements from corresponding product tab
+            product_tab = row['Description'].strip()
+            if product_tab in wb.sheetnames:
+               sheet = wb[product_tab]
+                measurements = extract_measurements(sheet)
+            else:
+                measurements = ""
             data = {
                 "design_number": int(row['Design Number']),
                 "description": row['Description'],
