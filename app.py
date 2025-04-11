@@ -1,5 +1,7 @@
 import os
 import pandas as pd
+import difflib
+import re
 from flask import Flask, request, jsonify
 from supabase import create_client, Client
 from werkzeug.utils import secure_filename
@@ -44,7 +46,14 @@ def upload_file():
             product_tab = row['Description'].strip()
             if product_tab in wb.sheetnames:
                 sheet = wb[product_tab]
+                print(f"[DEBUG] Tab: {product_tab}")
+                for row in [5, 6, 7]:
+                    for col in ['F', 'G', 'H', 'I', 'J']:
+                        cell_ref = f'{col}{row}'
+                        cell = sheet[cell_ref]
+                        print(f"[DEBUG] {cell_ref}: {cell.value if cell else 'None'}")
                 measurements = extract_measurements(sheet)
+
             else:
                 measurements = ""
 
@@ -138,11 +147,24 @@ def upload_form():
                     code = code_raw.replace("Code:", "").strip()
 
                     product_tab = row['Description'].strip()
-                    if product_tab in wb.sheetnames:
-                        sheet = wb[product_tab]
+                   
+                    tab_match = difflib.get_close_matches(product_tab, wb.sheetnames, n=1, cutoff=0.6)
+
+                    if tab_match:
+                        sheet = wb[tab_match[0]]
+                        print(f"\n[DEBUG] Found matching tab: '{tab_match[0]}' for description: '{product_tab}'")
+                        for r in [5, 6, 7]:
+                            for c in ['F', 'G', 'H', 'I', 'J']:
+                                cell = sheet[f'{c}{r}']
+                                val = cell.value if cell else None
+                                print(f"[DEBUG] {c}{r}: {val if val else 'EMPTY'}")
+
                         measurements = extract_measurements(sheet)
                     else:
+                        print(f"[DEBUG] ❌ No matching tab for description: '{product_tab}'")
                         measurements = ""
+
+                    print(f"[DEBUG] Final measurements: {measurements}")
 
                     data = {
                         "design_number": int(row['Design Number']),
@@ -203,6 +225,7 @@ def upload_form():
         </body>
     </html>
     """, message=message)
+
 
 
 
@@ -403,14 +426,41 @@ def home():
     </html>
     """)
 
+import re
+
 def extract_measurements(sheet):
-    """Extract and concatenate measurements from cells H4, H5, H6"""
     values = []
-    for row in [4, 5, 6]:
-        cell_value = sheet[f'H{row}']
-        if cell_value and cell_value.value:
-            values.append(str(cell_value.value).strip())
-    return ', '.join(values)  # Join all non-empty values into one string
+    for row in [5, 6, 7]:
+        cell = sheet[f'H{row}']
+        if cell and cell.value:
+            text = str(cell.value).strip()
+
+            # Standardise common terms (PTP, Waist, Hips, Length, etc.)
+            replacements = {
+                r'\bptp\b': 'PTP',
+                r'\bhip\b': 'Hip',
+                r'\bhips\b': 'Hip',
+                r'\bwaist\b': 'Waist',
+                r'\blength\b': 'Length',
+                r'\bl\b': 'Length',
+                r'\bw\b': 'Waist',
+                r'\bh\b': 'Hip',
+                r'\binner\b': 'Inner',
+                r'\bouter\b': 'Outer'
+            }
+
+            # Apply replacements with regex (case-insensitive)
+            for pattern, replacement in replacements.items():
+                text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+
+            # Clean up spacing and commas
+            text = re.sub(r'\s*,\s*', ', ', text)  # normalize comma spacing
+            text = re.sub(r'\s+', ' ', text)  # reduce extra spaces
+
+            values.append(text)
+
+    return ', '.join(values)
+
 
 def process_product_tab(sheet, product_name):
     # Example: existing logic to extract other product info...
@@ -440,5 +490,5 @@ def get_products():
 
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5002))
     app.run(host='0.0.0.0', port=port)
