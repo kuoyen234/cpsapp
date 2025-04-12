@@ -199,24 +199,24 @@ def upload_form():
     message = None
 
     if request.method == 'POST':
-        print("[DEBUG] Upload form POST triggered",flush=True))
+        print("[DEBUG] Upload form POST triggered",flush=True)
         if 'file' not in request.files or request.files['file'].filename == '':
             message = "No file selected."
         else:
-            print("[DEBUG] File selected: proceeding to save and process...",flush=True))
+            print("[DEBUG] File selected: proceeding to save and process...",flush=True)
             file = request.files['file']
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
 
             try:
-                print("[DEBUG] Starting full upload processing...",flush=True))
+                print("[DEBUG] Starting full upload processing...",flush=True)
 
                 # Pack_List tab
                 try:
-                    print("[DEBUG] Processing Pack_List tab...",flush=True))
+                    print("[DEBUG] Processing Pack_List tab...",flush=True)
                     packlist_df = pd.read_excel(filepath, sheet_name='Pack_List')
-                    print("[DEBUG] ✅ Loaded Pack_List",flush=True))
+                    print("[DEBUG] ✅ Loaded Pack_List",flush=True)
                     for i, row in packlist_df.iterrows():
                         row_dict = row.dropna().to_dict()
                         supabase.table("packlist").insert({
@@ -225,23 +225,23 @@ def upload_form():
                             "row_data": row_dict
                         }).execute()
                 except Exception as e:
-                    print(f"[DEBUG] ❌ Failed to load or save Pack_List: {str(e)}",flush=True))
+                    print(f"[DEBUG] ❌ Failed to load or save Pack_List: {str(e)}",flush=True)
 
                 # Bill tab
                 try:
-                    print("[DEBUG] Attempting to read Bill tab...",flush=True))
+                    print("[DEBUG] Attempting to read Bill tab...",flush=True)
                     bill_df = pd.read_excel(filepath, sheet_name='Bill')
-                    print("[DEBUG] ✅ Loaded Bill",flush=True))
+                    print("[DEBUG] ✅ Loaded Bill",flush=True)
                     for i, row in bill_df.iterrows():
                         row_dict = row.dropna().to_dict()
-                        print(f"[DEBUG] Bill row {i}: {row_dict}",flush=True))
+                        print(f"[DEBUG] Bill row {i}: {row_dict}",flush=True)
                         supabase.table("bills").insert({
                             "source_file": filename,
                             "row_index": i,
                             "row_data": row_dict
                         }).execute()
                 except Exception as e:
-                    print(f"[DEBUG] ❌ Failed to load or save Bill tab: {str(e)}",flush=True))
+                    print(f"[DEBUG] ❌ Failed to load or save Bill tab: {str(e)}",flush=True)
 
                 # Master tab
                 df = pd.read_excel(filepath, sheet_name='Master')
@@ -276,7 +276,7 @@ def upload_form():
                 message = "✅ Upload and insert successful!"
 
             except Exception as e:
-                print(f"[DEBUG] ❌ Outer upload error: {str(e)}",flush=True))
+                print(f"[DEBUG] ❌ Outer upload error: {str(e)}",flush=True)
                 message = f"❌ Upload failed: {str(e)}"
 
     return render_template_string("""
