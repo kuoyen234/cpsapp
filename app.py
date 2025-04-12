@@ -79,6 +79,8 @@ def login():
                 <button class="btn btn-primary" type="submit">Login</button>
             </form>
         </body>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
     </html>
     """, message=message)
 
@@ -319,29 +321,32 @@ def upload_form():
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         </head>
         <body class="container py-5">
-            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+           <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
                 <div class="container-fluid">
                     <a class="navbar-brand" href="/">🧾 CPSApp</a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                    </button>
                     <div class="collapse navbar-collapse" id="mainNavbar">
-                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                            <li class="nav-item">
-                                <a class="nav-link active" href="/upload-form">📤 Upload</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="/search-form">🔍 Search & Delete</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
-                            </li>
-                        </ul>
-                        {% if session.get("user") %}
-                            <div class="d-flex align-items-center">
-                                <span class="navbar-text text-white me-3">
-                                    👋 {{ session['user'] }}
-                                </span>
-                                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
-                            </div>
-                        {% endif %}
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/upload-form' %}active{% endif %}" href="/upload-form">📤 Upload</a>
+                        </li>
+                        <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/search-form' %}active{% endif %}" href="/search-form">🔍 Search & Delete</a>
+                        </li>
+                        <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/view-packlist' %}active{% endif %}" href="/view-packlist">📦 Pack_List</a>
+                        </li>
+                    </ul>
+                    {% if session.get("user") %}
+                        <div class="d-flex align-items-center">
+                        <span class="navbar-text text-white me-3">
+                            👋 {{ session['user'] }}
+                        </span>
+                        <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                        </div>
+                    {% endif %}
                     </div>
                 </div>
             </nav>
@@ -357,6 +362,7 @@ def upload_form():
                 <button class="btn btn-primary" type="submit">Upload File</button>
             </form>
         </body>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>                          
     </html>
     """, message=message)
 
@@ -444,30 +450,36 @@ def search_form():
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         </head>
         <body class="container py-5">
-            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-                <div class="container-fluid">
-                    <a class="navbar-brand" href="/">🧾 CPSApp</a>
-                    <div class="collapse navbar-collapse" id="mainNavbar">
-                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                            <li class="nav-item">
-                                <a class="nav-link" href="/upload-form">📤 Upload</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link active" href="/search-form">🔍 Search & Delete</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
-                            </li>
-                        </ul>
-                        {% if session.get("user") %}
-                            <div class="d-flex align-items-center">
-                                <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
-                                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
-                            </div>
-                        {% endif %}
+          <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/">🧾 CPSApp</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="mainNavbar">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/upload-form' %}active{% endif %}" href="/upload-form">📤 Upload</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/search-form' %}active{% endif %}" href="/search-form">🔍 Search & Delete</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/view-packlist' %}active{% endif %}" href="/view-packlist">📦 Pack_List</a>
+                    </li>
+                </ul>
+                {% if session.get("user") %}
+                    <div class="d-flex align-items-center">
+                    <span class="navbar-text text-white me-3">
+                        👋 {{ session['user'] }}
+                    </span>
+                    <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
                     </div>
+                {% endif %}
                 </div>
-            </nav>
+            </div>
+        </nav>
+
 
             <h2 class="mb-4">🔎 Search Products</h2>
 
@@ -551,6 +563,7 @@ def search_form():
                 <div class="alert alert-warning">No results found for "{{ query }}".</div>
             {% endif %}
         </body>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     </html>
     """, results=results, query=query, message=message, filename=filename, unique_files=unique_files)
 
@@ -692,6 +705,8 @@ def view_packlist():
                 </div>
             {% endif %}
         </body>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
     </html>
     """, unique_files=unique_files, selected_file=selected_file, packlist_df=packlist_df, error=error)
 
