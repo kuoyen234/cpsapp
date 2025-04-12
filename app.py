@@ -11,7 +11,8 @@ from flask import redirect, url_for
 from openpyxl import load_workbook
 from collections import defaultdict
 from flask import session, redirect, url_for
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
+
 
 
 
@@ -31,7 +32,7 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-from functools import wraps
+
 
 def login_required(f):
     @wraps(f)
