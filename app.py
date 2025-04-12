@@ -24,7 +24,7 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # Simple user store (you can also use .env or Supabase if needed)
 users = {
-    "ailianyvette@gmail.com": generate_password_hash("jojo16022001"),
+    "ailianyvette@gmail.com": generate_password_hash("password123"),
     "kuoyen23@yahoo.com": generate_password_hash("jojo16022001")
 }
 
@@ -197,6 +197,8 @@ def search():
 
 @app.route('/upload-form', methods=['GET', 'POST'])
 @login_required
+@app.route('/upload-form', methods=['GET', 'POST'])
+@login_required
 def upload_form():
     message = None
 
@@ -210,9 +212,11 @@ def upload_form():
             file.save(filepath)
 
             try:
-                # 🧩 Step 1: Save Pack_List to Supabase
+                # ⬇️ Save Pack_List tab
                 try:
+                    print("[DEBUG] Attempting to read Pack_List tab...")
                     packlist_df = pd.read_excel(filepath, sheet_name='Pack_List')
+                    print("[DEBUG] ✅ Loaded Pack_List")
                     for i, row in packlist_df.iterrows():
                         row_dict = row.dropna().to_dict()
                         supabase.table("packlist").insert({
@@ -221,10 +225,13 @@ def upload_form():
                             "row_data": row_dict
                         }).execute()
                 except Exception as e:
-                    print(f"[DEBUG] Skipping Pack_List save: {str(e)}")
+                    print(f"[DEBUG] ❌ Failed to load or save Pack_List: {str(e)}")
 
+                # ⬇️ Save Bill tab
                 try:
+                    print("[DEBUG] Attempting to read Bill tab...")
                     bill_df = pd.read_excel(filepath, sheet_name='Bill')
+                    print("[DEBUG] ✅ Loaded Bill")
                     for i, row in bill_df.iterrows():
                         row_dict = row.dropna().to_dict()
                         supabase.table("bills").insert({
@@ -233,19 +240,18 @@ def upload_form():
                             "row_data": row_dict
                         }).execute()
                 except Exception as e:
-                    print(f"[DEBUG] Skipping Bill tab: {str(e)}")
+                    print(f"[DEBUG] ❌ Failed to load or save Bill tab: {str(e)}")
 
-                # 🧩 Step 2: Process Master tab and Measurements
+                # ⬇️ Save product data from Master tab
                 df = pd.read_excel(filepath, sheet_name='Master')
                 wb = load_workbook(filepath, data_only=True)
 
                 for _, row in df.iterrows():
                     code_raw = str(row['Code'])
                     code = code_raw.replace("Code:", "").strip()
-
                     product_tab = row['Description'].strip()
 
-                    # Fuzzy match tab name
+                    # Fuzzy match sheet name
                     tab_match = difflib.get_close_matches(product_tab, wb.sheetnames, n=1, cutoff=0.6)
                     if tab_match:
                         sheet = wb[tab_match[0]]
@@ -284,42 +290,19 @@ def upload_form():
             <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
                 <div class="container-fluid">
                     <a class="navbar-brand" href="/">🧾 CPSApp</a>
-                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
-                        <span class="navbar-toggler-icon"></span>
-                    </button>
-                    <div class="collapse navbar-collapse justify-content-between" id="mainNavbar">
+                    <div class="collapse navbar-collapse" id="mainNavbar">
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                            <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
-                            <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
-                            <li class="nav-item"><a class="nav-link" href="/view-packlist">📦 Pack_List</a></li>
+                            <li class="nav-item">
+                                <a class="nav-link active" href="/upload-form">📤 Upload</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/search-form">🔍 Search & Delete</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
+                            </li>
                         </ul>
-
-                        {% if session.get("user") %}
-                            <div class="d-flex align-items-center">
-                                <span class="navbar-text text-white me-3">
-                                    👋 {{ session['user'] }}
-                                </span>
-                                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </nav>
-
-
-            <h2 class="mb-4">📤 Upload Product Excel File</h2>
-            {% if message %}
-                <div class="alert alert-info">{{ message }}</div>
-            {% endif %}
-            <form method="post" enctype="multipart/form-data">
-                <div class="mb-3">
-                    <input class="form-control" type="file" name="file" required>
-                </div>
-                <button class="btn btn-primary" type="submit">Upload File</button>
-            </form>
-        </body>
-    </html>
-    """, message=message)
+                        {% if session.get("user
 
 
 
