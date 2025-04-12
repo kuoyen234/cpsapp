@@ -223,6 +223,18 @@ def upload_form():
                 except Exception as e:
                     print(f"[DEBUG] Skipping Pack_List save: {str(e)}")
 
+                try:
+                    bill_df = pd.read_excel(filepath, sheet_name='Bill')
+                    for i, row in bill_df.iterrows():
+                        row_dict = row.dropna().to_dict()
+                        supabase.table("bills").insert({
+                            "source_file": filename,
+                            "row_index": i,
+                            "row_data": row_dict
+                        }).execute()
+                except Exception as e:
+                    print(f"[DEBUG] Skipping Bill tab: {str(e)}")
+
                 # 🧩 Step 2: Process Master tab and Measurements
                 df = pd.read_excel(filepath, sheet_name='Master')
                 wb = load_workbook(filepath, data_only=True)
