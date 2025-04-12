@@ -30,6 +30,7 @@ users = {
 
 # === Flask App ===
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey123")
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
