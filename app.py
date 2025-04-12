@@ -199,6 +199,8 @@ def search():
 @login_required
 @app.route('/upload-form', methods=['GET', 'POST'])
 @login_required
+@app.route('/upload-form', methods=['GET', 'POST'])
+@login_required
 def upload_form():
     message = None
 
@@ -302,7 +304,31 @@ def upload_form():
                                 <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
                             </li>
                         </ul>
-                        {% if session.get("user
+                        {% if session.get("user") %}
+                            <div class="d-flex align-items-center">
+                                <span class="navbar-text text-white me-3">
+                                    👋 {{ session['user'] }}
+                                </span>
+                                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </nav>
+
+            <h2 class="mb-4">📤 Upload Product Excel File</h2>
+            {% if message %}
+                <div class="alert alert-info">{{ message }}</div>
+            {% endif %}
+            <form method="post" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <input class="form-control" type="file" name="file" required>
+                </div>
+                <button class="btn btn-primary" type="submit">Upload File</button>
+            </form>
+        </body>
+    </html>
+    """, message=message)
 
 
 
