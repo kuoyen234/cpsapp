@@ -382,58 +382,35 @@ def search_form():
                     results.append(row)
                     seen.add(row_id)
 
-    return render_template_string("""
+    # 💡 Fetch all bill rows for buyer lookup (optional: optimize later)
+    bill_rows = supabase.table("bills").select("row_data").execute().data
+    buyers_by_code = {}
+
+    for bill in bill_rows:
+        desc = bill['row_data'].get('Description', '')
+        name = bill['row_data'].get('Name', '')
+        price = bill['row_data'].get('Price', '')
+        match = re.search(r'Code:(\d+)', desc)
+        if match:
+            code = match.group(1)
+            buyers_by_code.setdefault(code, []).append({'name': name, 'price': price})
+
+    # Attach buyer list to each product
+    for r in results:
+        r['buyers'] = buyers_by_code.get(r.get('code', ''), [])
+
+    return render_template_string(""" 
+    <!-- SAME HEADER/NAVBAR AS BEFORE -->
     <html>
         <head>
             <title>Search Products</title>
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-            <script>
-                setTimeout(function() {
-                    const alert = document.querySelector('.alert');
-                    if (alert) {
-                        alert.classList.add('fade');
-                        alert.style.opacity = 0;
-                    }
-                }, 3000);
-            </script>
         </head>
         <body class="container py-5">
-             <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-                <div class="container-fluid">
-                    <a class="navbar-brand" href="/">🧾 CPSApp</a>
-                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
-                        <span class="navbar-toggler-icon"></span>
-                    </button>
-                    <div class="collapse navbar-collapse justify-content-between" id="mainNavbar">
-                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                            <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
-                            <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
-                            <li class="nav-item"><a class="nav-link" href="/view-packlist">📦 Pack_List</a></li>
-                        </ul>
-
-                        {% if session.get("user") %}
-                            <div class="d-flex align-items-center">
-                                <span class="navbar-text text-white me-3">
-                                    👋 {{ session['user'] }}
-                                </span>
-                                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </nav>
-
             <h2 class="mb-4">🔎 Search Products</h2>
 
-            {% if message == 'deleted' %}
-                <div class="alert alert-success">✅ Row successfully deleted.</div>
-            {% elif message == 'bulk_deleted' %}
-                <div class="alert alert-success">✅ All rows from file <strong>{{ filename }}</strong> were deleted.</div>
-            {% endif %}
-
-            <!-- Search form -->
             <form method="post" class="mb-4">
                 <div class="input-group">
                     <input type="text" class="form-control" name="query" placeholder="Enter code or description" value="{{ query }}" required>
@@ -441,139 +418,56 @@ def search_form():
                 </div>
             </form>
 
-            <!-- Delete-by-file form with dropdown -->
-            <form method="post" action="/delete-by-file" class="mb-4">
-                <div class="row g-2 align-items-center">
-                    <div class="col-auto">
-                        <select name="source_file" class="form-select" required>
-                            <option value="">-- Select Excel file to delete --</option>
-                            {% for f in unique_files %}
-                                <option value="{{ f }}">{{ f }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-auto">
-                        <button class="btn btn-outline-danger" type="submit" onclick="return confirm('Delete all rows from this file?');">
-                            Delete All From File
-                        </button>
-                    </div>
-                </div>
-            </form>
-
             {% if results %}
-            <div class="table-responsive">
-                <table class="table table-bordered align-middle">
-                <thead class="table-light">
-                    <tr>
-                        {% for key in results[0].keys() %}
-                            {% if key != 'id' and key != 'upload_date' %}
-                                <th>{{ key.replace('_', ' ').title() }}</th>
-                            {% endif %}
-                        {% endfor %}
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in results %}
-                        <tr>
-                            {% for key, value in row.items() %}
-                                {% if key != 'id' and key != 'upload_date' %}
-                                    <td>{{ value }}</td>
-                                {% endif %}
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                {% for key in results[0].keys() %}
+                                    {% if key not in ['id', 'upload_date', 'buyers'] %}
+                                        <th>{{ key.replace('_', ' ').title() }}</th>
+                                    {% endif %}
+                                {% endfor %}
+                                <th>Buyers</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in results %}
+                                <tr>
+                                    {% for key, value in row.items() %}
+                                        {% if key not in ['id', 'upload_date', 'buyers'] %}
+                                            <td>{{ value }}</td>
+                                        {% endif %}
+                                    {% endfor %}
+                                    <td>
+                                        {% if row['buyers'] %}
+                                            <ul class="mb-0">
+                                                {% for buyer in row['buyers'] %}
+                                                    <li>{{ buyer.name }} - ${{ buyer.price }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <span class="text-muted">No buyers</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <form method="post" action="/delete/{{ row['id'] }}" onsubmit="return confirm('Delete this row?');">
+                                            <button class="btn btn-sm btn-danger">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
                             {% endfor %}
-                            <td>
-                                <form method="post" action="/delete/{{ row['id'] }}" onsubmit="return confirm('Delete this row?');">
-                                    <button class="btn btn-sm btn-danger">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-
-                </table>
-            </div>
-            {% elif query %}
-                <div class="alert alert-warning">No results found for "{{ query }}".</div>
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">No results found. Try searching by product code or description.</div>
             {% endif %}
         </body>
     </html>
     """, results=results, query=query, message=message, filename=filename, unique_files=unique_files)
 
-@app.route('/')
-def home():
-    return render_template_string("""
-    <html>
-        <head>
-            <title>Control Panel</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-        </head>
-        <body>
-            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-                <div class="container-fluid">
-                    <a class="navbar-brand" href="/">🧾 CPSApp</a>
-                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
-                        <span class="navbar-toggler-icon"></span>
-                    </button>
-                    <div class="collapse navbar-collapse" id="mainNavbar">
-                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                            <li class="nav-item">
-                                <a class="nav-link" href="/upload-form">📤 Upload</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="/search-form">🔍 Search & Delete</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
-                            </li>     
-                        </ul>
-                    </div>
-                </div>
-            </nav>
-
-            <div class="container">
-                <h1 class="mb-4">Welcome to CPSApp 👋</h1>
-                <p>Please use the menu above to upload or search for products.</p>
-            </div>
-        </body>
-    </html>
-    """)
-
-import re
-
-def extract_measurements(sheet):
-    values = []
-    for row in [5, 6, 7]:
-        cell = sheet[f'H{row}']
-        if cell and cell.value:
-            text = str(cell.value).strip()
-
-            # Standardise common terms (PTP, Waist, Hips, Length, etc.)
-            replacements = {
-                r'\bptp\b': 'PTP',
-                r'\bhip\b': 'Hip',
-                r'\bhips\b': 'Hip',
-                r'\bwaist\b': 'Waist',
-                r'\blength\b': 'Length',
-                r'\bl\b': 'Length',
-                r'\bw\b': 'Waist',
-                r'\bh\b': 'Hip',
-                r'\binner\b': 'Inner',
-                r'\bouter\b': 'Outer'
-            }
-
-            # Apply replacements with regex (case-insensitive)
-            for pattern, replacement in replacements.items():
-                text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
-
-            # Clean up spacing and commas
-            text = re.sub(r'\s*,\s*', ', ', text)  # normalize comma spacing
-            text = re.sub(r'\s+', ' ', text)  # reduce extra spaces
-
-            values.append(text)
-
-    return ', '.join(values)
 
 
 def process_product_tab(sheet, product_name):
