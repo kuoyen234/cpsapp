@@ -24,8 +24,8 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # Simple user store (you can also use .env or Supabase if needed)
 users = {
-    "admin@example.com": generate_password_hash("password123"),
-    "tony@example.com": generate_password_hash("securepass")
+    "ailianyvette@gmail.com": generate_password_hash("jojo16022001"),
+    "kuoyen23@yahoo.com": generate_password_hash("jojo16022001")
 }
 
 # === Flask App ===
