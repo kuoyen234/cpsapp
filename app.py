@@ -193,7 +193,6 @@ def search():
     """
     return render_template_string(html_template, data=data)
 
-
 @app.route('/upload-form', methods=['GET', 'POST'])
 @login_required
 def upload_form():
@@ -209,9 +208,11 @@ def upload_form():
             file.save(filepath)
 
             try:
-                # ⬇️ Save Pack_List tab
+                print("[DEBUG] Starting full upload processing...")
+
+                # Save Pack_List tab
                 try:
-                    print("[DEBUG] Attempting to read Pack_List tab...")
+                    print("[DEBUG] Processing Pack_List tab...")
                     packlist_df = pd.read_excel(filepath, sheet_name='Pack_List')
                     print("[DEBUG] ✅ Loaded Pack_List")
                     for i, row in packlist_df.iterrows():
@@ -224,13 +225,14 @@ def upload_form():
                 except Exception as e:
                     print(f"[DEBUG] ❌ Failed to load or save Pack_List: {str(e)}")
 
-                # ⬇️ Save Bill tab
+                # Save Bill tab
                 try:
                     print("[DEBUG] Attempting to read Bill tab...")
                     bill_df = pd.read_excel(filepath, sheet_name='Bill')
                     print("[DEBUG] ✅ Loaded Bill")
                     for i, row in bill_df.iterrows():
                         row_dict = row.dropna().to_dict()
+                        print(f"[DEBUG] Bill row {i}: {row_dict}")  # extra visibility
                         supabase.table("bills").insert({
                             "source_file": filename,
                             "row_index": i,
@@ -239,7 +241,7 @@ def upload_form():
                 except Exception as e:
                     print(f"[DEBUG] ❌ Failed to load or save Bill tab: {str(e)}")
 
-                # ⬇️ Save product data from Master tab
+                # Save Master/product data
                 df = pd.read_excel(filepath, sheet_name='Master')
                 wb = load_workbook(filepath, data_only=True)
 
@@ -248,7 +250,7 @@ def upload_form():
                     code = code_raw.replace("Code:", "").strip()
                     product_tab = row['Description'].strip()
 
-                    # Fuzzy match sheet name
+                    # Fuzzy match product tab
                     tab_match = difflib.get_close_matches(product_tab, wb.sheetnames, n=1, cutoff=0.6)
                     if tab_match:
                         sheet = wb[tab_match[0]]
@@ -273,57 +275,12 @@ def upload_form():
                 message = "✅ Upload and insert successful!"
 
             except Exception as e:
+                print(f"[DEBUG] ❌ Outer upload error: {str(e)}")
                 message = f"❌ Upload failed: {str(e)}"
 
-    return render_template_string("""
-    <html>
-        <head>
-            <title>Upload Product Excel</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-        </head>
-        <body class="container py-5">
-            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-                <div class="container-fluid">
-                    <a class="navbar-brand" href="/">🧾 CPSApp</a>
-                    <div class="collapse navbar-collapse" id="mainNavbar">
-                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                            <li class="nav-item">
-                                <a class="nav-link active" href="/upload-form">📤 Upload</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="/search-form">🔍 Search & Delete</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
-                            </li>
-                        </ul>
-                        {% if session.get("user") %}
-                            <div class="d-flex align-items-center">
-                                <span class="navbar-text text-white me-3">
-                                    👋 {{ session['user'] }}
-                                </span>
-                                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </nav>
+    return render_template_string("""...""", message=message)
 
-            <h2 class="mb-4">📤 Upload Product Excel File</h2>
-            {% if message %}
-                <div class="alert alert-info">{{ message }}</div>
-            {% endif %}
-            <form method="post" enctype="multipart/form-data">
-                <div class="mb-3">
-                    <input class="form-control" type="file" name="file" required>
-                </div>
-                <button class="btn btn-primary" type="submit">Upload File</button>
-            </form>
-        </body>
-    </html>
-    """, message=message)
+
 
 
 
