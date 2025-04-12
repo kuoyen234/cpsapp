@@ -10,20 +10,85 @@ from flask import Flask, request, jsonify, render_template_string, redirect
 from flask import redirect, url_for
 from openpyxl import load_workbook
 from collections import defaultdict
+from flask import session, redirect, url_for
+from werkzeug.security import check_password_hash, 
+
+
 
 
 # === Supabase Config ===
 SUPABASE_URL = "https://wmthdsalqsrdiwxbmfey.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtdGhkc2FscXNyZGl3eGJtZmV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNjE2NTEsImV4cCI6MjA1OTgzNzY1MX0.3_3iBmNy9VM5BRycEKLvTfBBCRQkjJF7kP0EN-VZH68"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Simple user store (you can also use .env or Supabase if needed)
+users = {
+    "admin@example.com": generate_password_hash("password123"),
+    "tony@example.com": generate_password_hash("securepass")
+}
 
 # === Flask App ===
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+from functools import wraps
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get("user"):
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    message = None
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+
+        if email in users and check_password_hash(users[email], password):
+            session['user'] = email
+            return redirect(url_for('upload_form'))
+        else:
+            message = "❌ Invalid credentials."
+
+    return render_template_string("""
+    <html>
+        <head>
+            <title>Login</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body class="container py-5">
+            <h2 class="mb-4">🔐 Login to CPSApp</h2>
+            {% if message %}
+                <div class="alert alert-danger">{{ message }}</div>
+            {% endif %}
+            <form method="post">
+                <div class="mb-3">
+                    <label>Email</label>
+                    <input type="email" name="email" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label>Password</label>
+                    <input type="password" name="password" class="form-control" required>
+                </div>
+                <button class="btn btn-primary" type="submit">Login</button>
+            </form>
+        </body>
+    </html>
+    """, message=message)
+
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return redirect(url_for('login'))
+
+
 # === Upload Endpoint ===
 @app.route('/upload', methods=['POST'])
+@login_required
 def upload_file():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -126,8 +191,9 @@ def search():
     """
     return render_template_string(html_template, data=data)
 
+
 @app.route('/upload-form', methods=['GET', 'POST'])
-@app.route('/upload-form', methods=['GET', 'POST'])
+@login_required
 def upload_form():
     message = None
 
@@ -236,7 +302,7 @@ def upload_form():
 
 
 @app.route('/delete/<row_id>', methods=['POST'])
-
+@login_required
 def delete_row(row_id):
     try:
         supabase.table("products").delete().eq("id", row_id).execute()
@@ -246,6 +312,7 @@ def delete_row(row_id):
 
     
 @app.route('/delete-by-file', methods=['POST'])
+@login_required
 def delete_by_file():
     filename = request.form.get('source_file')
     if not filename:
@@ -258,6 +325,7 @@ def delete_by_file():
 
 
 @app.route('/search-form', methods=['GET', 'POST'])
+@login_required
 def search_form():
     results = []
     query = ""
@@ -501,6 +569,7 @@ def get_products():
 
 
 @app.route('/view-packlist', methods=['GET', 'POST'])
+@login_required
 def view_packlist():
     selected_file = None
     packlist_df = None
