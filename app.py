@@ -382,7 +382,7 @@ def search_form():
                     results.append(row)
                     seen.add(row_id)
 
-    # 💡 Fetch all bill rows for buyer lookup (optional: optimize later)
+    # Lookup buyers from 'bills' table
     bill_rows = supabase.table("bills").select("row_data").execute().data
     buyers_by_code = {}
 
@@ -395,12 +395,10 @@ def search_form():
             code = match.group(1)
             buyers_by_code.setdefault(code, []).append({'name': name, 'price': price})
 
-    # Attach buyer list to each product
     for r in results:
         r['buyers'] = buyers_by_code.get(r.get('code', ''), [])
 
-    return render_template_string(""" 
-    <!-- SAME HEADER/NAVBAR AS BEFORE -->
+    return render_template_string("""
     <html>
         <head>
             <title>Search Products</title>
@@ -409,12 +407,63 @@ def search_form():
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         </head>
         <body class="container py-5">
+            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+                <div class="container-fluid">
+                    <a class="navbar-brand" href="/">🧾 CPSApp</a>
+                    <div class="collapse navbar-collapse" id="mainNavbar">
+                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                            <li class="nav-item">
+                                <a class="nav-link" href="/upload-form">📤 Upload</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link active" href="/search-form">🔍 Search & Delete</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
+                            </li>
+                        </ul>
+                        {% if session.get("user") %}
+                            <div class="d-flex align-items-center">
+                                <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
+                                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </nav>
+
             <h2 class="mb-4">🔎 Search Products</h2>
 
+            {% if message == 'deleted' %}
+                <div class="alert alert-success">✅ Row successfully deleted.</div>
+            {% elif message == 'bulk_deleted' %}
+                <div class="alert alert-success">✅ All rows from file <strong>{{ filename }}</strong> were deleted.</div>
+            {% endif %}
+
+            <!-- 🔍 Search form -->
             <form method="post" class="mb-4">
                 <div class="input-group">
                     <input type="text" class="form-control" name="query" placeholder="Enter code or description" value="{{ query }}" required>
                     <button class="btn btn-primary" type="submit">Search</button>
+                </div>
+            </form>
+
+            <!-- 📂 Delete-by-file form -->
+            <form method="post" action="/delete-by-file" class="mb-4">
+                <div class="row g-2 align-items-center">
+                    <div class="col-auto">
+                        <select name="source_file" class="form-select" required>
+                            <option value="">-- Select Excel file to delete --</option>
+                            {% for f in unique_files %}
+                                <option value="{{ f }}">{{ f }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-outline-danger" type="submit" onclick="return confirm('Delete all rows from this file?');">
+                            Delete All From File
+                        </button>
+                    </div>
                 </div>
             </form>
 
@@ -461,12 +510,13 @@ def search_form():
                         </tbody>
                     </table>
                 </div>
-            {% else %}
-                <div class="alert alert-info">No results found. Try searching by product code or description.</div>
+            {% elif query %}
+                <div class="alert alert-warning">No results found for "{{ query }}".</div>
             {% endif %}
         </body>
     </html>
     """, results=results, query=query, message=message, filename=filename, unique_files=unique_files)
+
 
 
 
