@@ -526,11 +526,11 @@ def search_form():
                                             <td>{{ value }}</td>
                                         {% endif %}
                                     {% endfor %}
-                                    <td>
+                                   <td>
                                         {% if row['buyers'] %}
                                             <ul class="mb-0">
                                                 {% for buyer in row['buyers'] %}
-                                                    <li>{{ buyer.name }} - ${{ buyer.price }}</li>
+                                                    <li>{{ buyer.name }}</li>
                                                 {% endfor %}
                                             </ul>
                                         {% else %}
