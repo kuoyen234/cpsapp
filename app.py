@@ -9,6 +9,7 @@ from datetime import datetime
 from flask import Flask, request, jsonify, render_template_string, redirect
 from flask import redirect, url_for
 from openpyxl import load_workbook
+from collections import defaultdict
 
 
 # === Supabase Config ===
@@ -497,16 +498,29 @@ def get_products():
 
     return jsonify(filtered)
 
+
 @app.route('/view-packlist', methods=['GET', 'POST'])
 def view_packlist():
     selected_file = None
     packlist_df = None
     error = None
 
-    # Get all uploaded filenames from the database
-    file_list = supabase.table("products").select("source_file").execute().data
-    unique_files = sorted(set(row['source_file'] for row in file_list if row.get('source_file')))
+    # Fetch filename + upload_date
+    file_rows = supabase.table("products").select("source_file", "upload_date").execute().data
 
+    # Group by source_file and keep latest upload_date per file
+    file_dates = defaultdict(str)
+    for row in file_rows:
+        fname = row.get("source_file")
+        fdate = row.get("upload_date")
+        if fname and fdate:
+            if fdate > file_dates[fname]:  # Keep the latest date
+                file_dates[fname] = fdate
+
+    # Sort files by most recent upload_date descending
+    unique_files = [fname for fname, _ in sorted(file_dates.items(), key=lambda x: x[1], reverse=True)]
+
+    # Handle form submit
     if request.method == 'POST':
         selected_file = request.form.get('selected_file')
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], selected_file)
@@ -580,6 +594,7 @@ def view_packlist():
         </body>
     </html>
     """, unique_files=unique_files, selected_file=selected_file, packlist_df=packlist_df, error=error)
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5002))
