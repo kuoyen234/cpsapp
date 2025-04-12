@@ -272,21 +272,28 @@ def upload_form():
             <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
                 <div class="container-fluid">
                     <a class="navbar-brand" href="/">🧾 CPSApp</a>
-                    <div class="collapse navbar-collapse" id="mainNavbar">
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse justify-content-between" id="mainNavbar">
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                            <li class="nav-item">
-                                <a class="nav-link active" href="/upload-form">📤 Upload</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="/search-form">🔍 Search & Delete</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
-                            </li>
+                            <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/view-packlist">📦 Pack_List</a></li>
                         </ul>
+
+                        {% if session.get("user") %}
+                            <div class="d-flex align-items-center">
+                                <span class="navbar-text text-white me-3">
+                                    👋 {{ session['user'] }}
+                                </span>
+                                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </nav>
+
 
             <h2 class="mb-4">📤 Upload Product Excel File</h2>
             {% if message %}
@@ -371,24 +378,27 @@ def search_form():
             </script>
         </head>
         <body class="container py-5">
-            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+             <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
                 <div class="container-fluid">
                     <a class="navbar-brand" href="/">🧾 CPSApp</a>
                     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
                         <span class="navbar-toggler-icon"></span>
                     </button>
-                    <div class="collapse navbar-collapse" id="mainNavbar">
+                    <div class="collapse navbar-collapse justify-content-between" id="mainNavbar">
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                            <li class="nav-item">
-                                <a class="nav-link" href="/upload-form">📤 Upload</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="/search-form">🔍 Search & Delete</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
-                            </li>
+                            <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/view-packlist">📦 Pack_List</a></li>
                         </ul>
+
+                        {% if session.get("user") %}
+                            <div class="d-flex align-items-center">
+                                <span class="navbar-text text-white me-3">
+                                    👋 {{ session['user'] }}
+                                </span>
+                                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </nav>
@@ -616,12 +626,24 @@ def view_packlist():
             <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
                 <div class="container-fluid">
                     <a class="navbar-brand" href="/">🧾 CPSApp</a>
-                    <div class="collapse navbar-collapse">
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse justify-content-between" id="mainNavbar">
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                             <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
                             <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
-                            <li class="nav-item"><a class="nav-link active" href="/view-packlist">📦 Pack_List</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/view-packlist">📦 Pack_List</a></li>
                         </ul>
+
+                        {% if session.get("user") %}
+                            <div class="d-flex align-items-center">
+                                <span class="navbar-text text-white me-3">
+                                    👋 {{ session['user'] }}
+                                </span>
+                                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </nav>
