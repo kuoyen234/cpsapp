@@ -488,6 +488,89 @@ def get_products():
 
     return jsonify(filtered)
 
+@app.route('/view-packlist', methods=['GET', 'POST'])
+def view_packlist():
+    selected_file = None
+    packlist_df = None
+    error = None
+
+    # Get all uploaded filenames from the database
+    file_list = supabase.table("products").select("source_file").execute().data
+    unique_files = sorted(set(row['source_file'] for row in file_list if row.get('source_file')))
+
+    if request.method == 'POST':
+        selected_file = request.form.get('selected_file')
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], selected_file)
+
+        try:
+            packlist_df = pd.read_excel(filepath, sheet_name='Pack_List')
+        except Exception as e:
+            error = f"❌ Unable to read 'Pack_List' tab: {str(e)}"
+
+    return render_template_string("""
+    <html>
+        <head>
+            <title>📦 View Pack_List</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body class="container py-5">
+            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+                <div class="container-fluid">
+                    <a class="navbar-brand" href="/">🧾 CPSApp</a>
+                    <div class="collapse navbar-collapse">
+                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                            <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
+                            <li class="nav-item"><a class="nav-link active" href="/view-packlist">📦 Pack_List</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            <h2 class="mb-4">📦 View Pack_List Sheet</h2>
+
+            <form method="post" class="mb-4">
+                <div class="input-group">
+                    <select name="selected_file" class="form-select" required>
+                        <option value="">-- Select uploaded file --</option>
+                        {% for file in unique_files %}
+                            <option value="{{ file }}" {% if file == selected_file %}selected{% endif %}>{{ file }}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-primary" type="submit">View Pack_List</button>
+                </div>
+            </form>
+
+            {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+
+            {% if packlist_df is not none %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                {% for col in packlist_df.columns %}
+                                    <th>{{ col }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for _, row in packlist_df.iterrows() %}
+                                <tr>
+                                    {% for cell in row %}
+                                        <td>{{ cell }}</td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </body>
+    </html>
+    """, unique_files=unique_files, selected_file=selected_file, packlist_df=packlist_df, error=error)
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5002))
