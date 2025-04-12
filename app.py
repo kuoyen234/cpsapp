@@ -199,9 +199,11 @@ def upload_form():
     message = None
 
     if request.method == 'POST':
+        print("[DEBUG] Upload form POST triggered")
         if 'file' not in request.files or request.files['file'].filename == '':
             message = "No file selected."
         else:
+            print("[DEBUG] File selected: proceeding to save and process...")
             file = request.files['file']
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
