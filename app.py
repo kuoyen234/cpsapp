@@ -323,7 +323,7 @@ def upload_form():
         <body class="container py-5">
            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
                 <div class="container-fluid">
-                    <a class="navbar-brand" href="/">🧾 CPSApp</a>
+                    <a class="navbar-brand" href="/">🧾 2PM App</a>
                     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                     </button>
@@ -709,7 +709,10 @@ def view_packlist():
 
     </html>
     """, unique_files=unique_files, selected_file=selected_file, packlist_df=packlist_df, error=error)
-
+@app.route('/')
+@login_required
+def index():
+    return redirect(url_for('search_form'))
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5002))
