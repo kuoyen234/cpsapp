@@ -193,6 +193,37 @@ def search():
     """
     return render_template_string(html_template, data=data)
 
+def extract_measurements(sheet):
+    values = []
+    for row in [5, 6, 7]:
+        cell = sheet[f'H{row}']
+        if cell and cell.value:
+            text = str(cell.value).strip()
+
+            replacements = {
+                r'\bptp\b': 'PTP',
+                r'\bhip\b': 'Hip',
+                r'\bhips\b': 'Hip',
+                r'\bwaist\b': 'Waist',
+                r'\blength\b': 'Length',
+                r'\bl\b': 'Length',
+                r'\bw\b': 'Waist',
+                r'\bh\b': 'Hip',
+                r'\binner\b': 'Inner',
+                r'\bouter\b': 'Outer'
+            }
+
+            for pattern, replacement in replacements.items():
+                text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+            text = re.sub(r'\s*,\s*', ', ', text)
+            text = re.sub(r'\s+', ' ', text)
+
+            values.append(text)
+
+    return ', '.join(values)
+
+
+
 @app.route('/upload-form', methods=['GET', 'POST'])
 @login_required
 def upload_form():
