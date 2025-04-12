@@ -418,13 +418,19 @@ def search_form():
     buyers_by_code = {}
 
     for bill in bill_rows:
-        desc = bill['row_data'].get('Description', '')
-        name = bill['row_data'].get('Name', '')
+        desc = str(bill['row_data'].get('Description', '')).strip()
+        name = str(bill['row_data'].get('Name', '')).strip()
         price = bill['row_data'].get('Price', '')
-        match = re.search(r'Code:(\d+)', desc)
+
+        match = re.search(r'Code[:\s]*(\d+)', desc)
         if match:
-            code = match.group(1)
-            buyers_by_code.setdefault(code, []).append({'name': name, 'price': price})
+            code = match.group(1).strip()
+            buyers_by_code.setdefault(code, set()).add((name, price))
+
+    # Convert sets to list of dicts for display
+    for code in buyers_by_code:
+        buyers_by_code[code] = [{'name': name, 'price': price} for name, price in buyers_by_code[code]]
+
 
     for r in results:
         r['buyers'] = buyers_by_code.get(r.get('code', ''), [])
