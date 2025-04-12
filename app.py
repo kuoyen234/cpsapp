@@ -207,6 +207,9 @@ def upload_form():
                             <li class="nav-item">
                                 <a class="nav-link" href="/search-form">🔍 Search & Delete</a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -308,6 +311,9 @@ def search_form():
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" href="/search-form">🔍 Search & Delete</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
                             </li>
                         </ul>
                     </div>
@@ -413,6 +419,9 @@ def home():
                             <li class="nav-item">
                                 <a class="nav-link" href="/search-form">🔍 Search & Delete</a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
+                            </li>     
                         </ul>
                     </div>
                 </div>
