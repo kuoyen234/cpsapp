@@ -2,7 +2,6 @@ import os
 import pandas as pd
 import difflib
 import re
-from flask import Flask, request, jsonify
 from supabase import create_client, Client
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -92,7 +91,7 @@ def logout():
 # === Upload Endpoint ===
 @app.route('/upload', methods=['POST'])
 @login_required
-def upload_file():
+def upload_product_api():  #
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
 
@@ -195,10 +194,6 @@ def search():
     return render_template_string(html_template, data=data)
 
 
-@app.route('/upload-form', methods=['GET', 'POST'])
-@login_required
-@app.route('/upload-form', methods=['GET', 'POST'])
-@login_required
 @app.route('/upload-form', methods=['GET', 'POST'])
 @login_required
 def upload_form():
