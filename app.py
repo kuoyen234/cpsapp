@@ -623,13 +623,14 @@ def view_packlist():
 
     # Handle form submit
     if request.method == 'POST':
-        selected_file = request.form.get('selected_file')
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], selected_file)
+    selected_file = request.form.get('selected_file')
 
-        try:
-            packlist_df = pd.read_excel(filepath, sheet_name='Pack_List')
-        except Exception as e:
-            error = f"❌ Unable to read 'Pack_List' tab: {str(e)}"
+    try:
+        rows = supabase.table("packlist").select("row_data").eq("source_file", selected_file).order("row_index").execute().data
+        if rows:
+            packlist_df = pd.DataFrame([row['row_data'] for row in rows])
+        else:
+            error = f"❌ No Pack_List data found for file: {selected_file}"
 
     return render_template_string("""
     <html>
