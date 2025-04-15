@@ -604,33 +604,20 @@ def view_packlist():
     packlist_df = None
     error = None
 
-    # Fetch filename + upload_date
-    file_rows = supabase.table("products").select("source_file", "upload_date").execute().data
-    file_rows = [r for r in file_rows if r.get("source_file")]
+    # Fetch file list from Supabase
+    file_rows = supabase.table("packlist").select("source_file").execute().data
+    unique_files = sorted({r["source_file"] for r in file_rows if r.get("source_file")}, reverse=True)
 
-
-    # Group by source_file and keep latest upload_date per file
-    file_dates = defaultdict(str)
-    for row in file_rows:
-        fname = row.get("source_file")
-        fdate = row.get("upload_date")
-        if fname and fdate:
-            if fdate > file_dates[fname]:  # Keep the latest date
-                file_dates[fname] = fdate
-
-    # Sort files by most recent upload_date descending
-    unique_files = [fname for fname, _ in sorted(file_dates.items(), key=lambda x: x[1], reverse=True)]
-
-    # Handle form submit
     if request.method == 'POST':
-    selected_file = request.form.get('selected_file')
-
-    try:
-        rows = supabase.table("packlist").select("row_data").eq("source_file", selected_file).order("row_index").execute().data
-        if rows:
-            packlist_df = pd.DataFrame([row['row_data'] for row in rows])
-        else:
-            error = f"❌ No Pack_List data found for file: {selected_file}"
+        selected_file = request.form.get('selected_file')
+        try:
+            rows = supabase.table("packlist").select("row_data").eq("source_file", selected_file).order("row_index").execute().data
+            if rows:
+                packlist_df = pd.DataFrame([row['row_data'] for row in rows])
+            else:
+                error = f"❌ No Pack_List data found for file: {selected_file}"
+        except Exception as e:
+            error = f"❌ Error loading Pack_List from Supabase: {str(e)}"
 
     return render_template_string("""
     <html>
@@ -642,22 +629,16 @@ def view_packlist():
         <body class="container py-5">
             <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
                 <div class="container-fluid">
-                    <a class="navbar-brand" href="/">🧾 CPSApp</a>
-                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
-                        <span class="navbar-toggler-icon"></span>
-                    </button>
-                    <div class="collapse navbar-collapse justify-content-between" id="mainNavbar">
+                    <a class="navbar-brand" href="/search-form">🧾 CPSApp</a>
+                    <div class="collapse navbar-collapse justify-content-between">
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                             <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
                             <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
-                            <li class="nav-item"><a class="nav-link" href="/view-packlist">📦 Pack_List</a></li>
+                            <li class="nav-item"><a class="nav-link active" href="/view-packlist">📦 Pack_List</a></li>
                         </ul>
-
                         {% if session.get("user") %}
                             <div class="d-flex align-items-center">
-                                <span class="navbar-text text-white me-3">
-                                    👋 {{ session['user'] }}
-                                </span>
+                                <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
                                 <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
                             </div>
                         {% endif %}
@@ -706,10 +687,9 @@ def view_packlist():
                 </div>
             {% endif %}
         </body>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
     </html>
     """, unique_files=unique_files, selected_file=selected_file, packlist_df=packlist_df, error=error)
+
 @app.route('/')
 @login_required
 def index():
