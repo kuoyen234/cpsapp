@@ -606,7 +606,7 @@ def view_packlist():
 
     # Fetch filename + upload_date
     file_rows = supabase.table("products").select("source_file", "upload_date").execute().data
-    file_rows = [r for r in file_rows if r.get("source_file") and os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], r["source_file"]))]
+    file_rows = [r for r in file_rows if r.get("source_file")]
 
 
     # Group by source_file and keep latest upload_date per file
