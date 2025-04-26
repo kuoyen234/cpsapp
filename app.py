@@ -387,15 +387,18 @@ def delete_by_file():
     if not filename:
         return "No file name provided", 400
     try:
-        # Delete from products
+        # Delete from all tables
         supabase.table("products").delete().eq("source_file", filename).execute()
-        # Delete from packlist
         supabase.table("packlist").delete().eq("source_file", filename).execute()
-        # Delete from bills
         supabase.table("bills").delete().eq("source_file", filename).execute()
+
+        # Confirm deletion (optional)
+        print(f"[DEBUG] Deleted all rows for file: {filename}", flush=True)
+
         return redirect(url_for('search_form', msg='bulk_deleted', filename=filename))
     except Exception as e:
         return f"Error deleting rows from file: {str(e)}", 500
+
 
 
 
