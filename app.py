@@ -616,7 +616,7 @@ def view_packlist():
     packlist_df = None
     error = None
 
-    # 🔄 Fetch UNIQUE file list from Supabase AFTER deletion
+    # Fetch file list from Supabase
     file_rows = supabase.table("packlist").select("source_file").execute().data
     unique_files = sorted({r["source_file"] for r in file_rows if r.get("source_file")}, reverse=True)
 
@@ -631,7 +631,76 @@ def view_packlist():
         except Exception as e:
             error = f"❌ Error loading Pack_List from Supabase: {str(e)}"
 
-    return render_template_string(..., unique_files=unique_files, ...)
+    return render_template_string("""
+    <html>
+        <head>
+            <title>📦 View Pack_List</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body class="container py-5">
+            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+                <div class="container-fluid">
+                    <a class="navbar-brand" href="/search-form">🧾 CPSApp</a>
+                    <div class="collapse navbar-collapse justify-content-between">
+                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                            <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
+                            <li class="nav-item"><a class="nav-link active" href="/view-packlist">📦 Pack_List</a></li>
+                        </ul>
+                        {% if session.get("user") %}
+                            <div class="d-flex align-items-center">
+                                <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
+                                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </nav>
+
+            <h2 class="mb-4">📦 View Pack_List Sheet</h2>
+
+            <form method="post" class="mb-4">
+                <div class="input-group">
+                    <select name="selected_file" class="form-select" required>
+                        <option value="">-- Select uploaded file --</option>
+                        {% for file in unique_files %}
+                            <option value="{{ file }}" {% if file == selected_file %}selected{% endif %}>{{ file }}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-primary" type="submit">View Pack_List</button>
+                </div>
+            </form>
+
+            {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+
+            {% if packlist_df is not none %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                {% for col in packlist_df.columns %}
+                                    <th>{{ col }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for _, row in packlist_df.iterrows() %}
+                                <tr>
+                                    {% for cell in row %}
+                                        <td>{{ cell }}</td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </body>
+    </html>
+    """, unique_files=unique_files, selected_file=selected_file, packlist_df=packlist_df, error=error)
 
 
 @app.route('/')
