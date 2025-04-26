@@ -52,7 +52,7 @@ def login():
 
         if email in users and check_password_hash(users[email], password):
             session['user'] = email
-            return redirect(url_for('upload_form'))
+            return redirect(url_for('search_form'))
         else:
             message = "❌ Invalid credentials."
 
@@ -443,40 +443,34 @@ def search_form():
 
     return render_template_string("""
     <!DOCTYPE html>
-<!DOCTYPE html>
 <html>
 <head>
     <title>Search Products</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function blurInputOnSubmit() {
-            const input = document.querySelector('input[name="query"]');
-            if (input) {
-                input.blur(); // Remove focus to hide keyboard
-            }
-        }
-    </script>
 </head>
 <body class="container py-5">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container-fluid">
             <a class="navbar-brand" href="/search-form">🧾 CPSApp</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse justify-content-between" id="mainNavbar">
+            <div class="collapse navbar-collapse" id="mainNavbar">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="/search-form">🔍 Search & Delete</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/view-packlist">📦 Pack_List</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/upload-form">📤 Upload</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/search-form">🔍 Search & Delete</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
+                    </li>
                 </ul>
                 {% if session.get("user") %}
-                <div class="d-flex align-items-center">
-                    <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
-                    <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
-                </div>
+                    <div class="d-flex align-items-center">
+                        <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
+                        <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                    </div>
                 {% endif %}
             </div>
         </div>
@@ -485,13 +479,13 @@ def search_form():
     <h2 class="mb-4">🔎 Search Products</h2>
 
     {% if message == 'deleted' %}
-    <div class="alert alert-success">✅ Row successfully deleted.</div>
+        <div class="alert alert-success">✅ Row successfully deleted.</div>
     {% elif message == 'bulk_deleted' %}
-    <div class="alert alert-success">✅ All rows from file <strong>{{ filename }}</strong> were deleted.</div>
+        <div class="alert alert-success">✅ All rows from file <strong>{{ filename }}</strong> were deleted.</div>
     {% endif %}
 
     <!-- 🔍 Search form -->
-    <form method="post" class="mb-4" onsubmit="blurInputOnSubmit()">
+    <form method="post" class="mb-4">
         <div class="input-group">
             <input type="text" class="form-control" name="query" placeholder="Enter code or description" value="{{ query }}" required>
             <button class="btn btn-primary" type="submit">Search</button>
@@ -505,7 +499,7 @@ def search_form():
                 <select name="source_file" class="form-select" required>
                     <option value="">-- Select Excel file to delete --</option>
                     {% for f in unique_files %}
-                    <option value="{{ f }}">{{ f }}</option>
+                        <option value="{{ f }}">{{ f }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -518,58 +512,64 @@ def search_form():
     </form>
 
     {% if results %}
-    <div class="table-responsive">
-        <table class="table table-bordered align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>Code</th>
-                    <th>Description</th>
-                    <th>Price</th>
-                    <th>Color</th>
-                    <th>Measurements</th>
-                    <th>Design Number</th>
-                    <th>Source File</th>
-                    <th>Buyers</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in results %}
-                <tr>
-                    <td>{{ row['code'] }}</td>
-                    <td>{{ row['description'] }}</td>
-                    <td>{{ row['price'] }}</td>
-                    <td>{{ row['color'] }}</td>
-                    <td>{{ row['measurements'] }}</td>
-                    <td>{{ row['design_number'] }}</td>
-                    <td>{{ row['source_file'] }}</td>
-                    <td>
-                        {% if row['buyers'] %}
-                        <ul class="mb-0">
-                            {% for buyer in row['buyers'] %}
-                            <li>{{ buyer.name }}</li>
-                            {% endfor %}
-                        </ul>
-                        {% else %}
-                        <span class="text-muted">No buyers</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <form method="post" action="/delete/{{ row['id'] }}" onsubmit="return confirm('Delete this row?');">
-                            <button class="btn btn-sm btn-danger">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Code</th>
+                        <th>Description</th>
+                        <th>Price</th>
+                        <th>Color</th>
+                        <th>Measurements</th>
+                        <th>Design Number</th>
+                        <th>Source File</th>
+                        <th>Buyers</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in results %}
+                        <tr>
+                            <td>{{ row['code'] }}</td>
+                            <td>{{ row['description'] }}</td>
+                            <td>{{ row['price'] }}</td>
+                            <td>{{ row['color'] }}</td>
+                            <td>{{ row['measurements'] }}</td>
+                            <td>{{ row['design_number'] }}</td>
+                            <td>{{ row['source_file'] }}</td>
+                            <td>
+                                {% if row['buyers'] %}
+                                    <ul class="mb-0">
+                                        {% for buyer in row['buyers'] %}
+                                            <li>{{ buyer.name }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <span class="text-muted">No buyers</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="post" action="/delete/{{ row['id'] }}" onsubmit="return confirm('Delete this row?');">
+                                    <button class="btn btn-sm btn-danger">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     {% elif query %}
-    <div class="alert alert-warning">No results found for "{{ query }}".</div>
+        <div class="alert alert-warning">No results found for "{{ query }}".</div>
     {% endif %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.querySelector('input[name="query"]');
+        searchInput.blur();  // Remove focus after page load
+    });
+    </script>
+                              
 </body>
 </html>
-
 
     """, results=results, query=query, message=message, filename=filename, unique_files=unique_files)
 
