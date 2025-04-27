@@ -336,6 +336,10 @@ def upload_form():
                         <a class="nav-link {% if request.path == '/search-form' %}active{% endif %}" href="/search-form">🔍 Search & Delete</a>
                         </li>
                         <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a>
+                        </li>
+
+                        <li class="nav-item">
                         <a class="nav-link {% if request.path == '/view-packlist' %}active{% endif %}" href="/view-packlist">📦 Pack_List</a>
                         </li>
                     </ul>
