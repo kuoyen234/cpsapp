@@ -130,7 +130,7 @@ def invoice_form():
             total += courier_fee
         show_invoice = True
 
-    return render_template_string(f"""
+    return render_template_string("""
     <html>
     <head><title>🧾 Create Invoice</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
