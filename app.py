@@ -709,6 +709,161 @@ def view_packlist():
     </html>
     """, unique_files=unique_files, selected_file=selected_file, packlist_df=packlist_df, error=error)
 
+@app.route('/generate-invoice', methods=['GET', 'POST'])
+@login_required
+def generate_invoice():
+    selected_file = None
+    selected_customer = None
+    customer_rows = []
+    invoice_data = None
+    courier_fee = 0
+    total_amount = 0
+    error = None
+
+    # Fetch unique files from 'bills' table
+    file_rows = supabase.table("bills").select("source_file").execute().data
+    unique_files = sorted({r["source_file"] for r in file_rows if r.get("source_file")}, reverse=True)
+
+    if request.method == 'POST':
+        selected_file = request.form.get('selected_file')
+        selected_customer = request.form.get('selected_customer')
+        courier_method = request.form.get('courier_method')
+        ad_hoc_desc = request.form.get('ad_hoc_desc')
+        ad_hoc_price = request.form.get('ad_hoc_price')
+
+        try:
+            # Filter rows for selected customer
+            rows = supabase.table("bills").select("row_data").eq("source_file", selected_file).execute().data
+            customer_rows = [row['row_data'] for row in rows if str(row['row_data'].get('Name')).strip() == selected_customer]
+
+            if not customer_rows:
+                error = f"No purchases found for {selected_customer} in {selected_file}."
+            else:
+                subtotal = sum(float(r['Price']) for r in customer_rows)
+
+                ad_hoc_items = []
+                if ad_hoc_desc and ad_hoc_price:
+                    ad_hoc_items.append({'Description': ad_hoc_desc, 'Price': float(ad_hoc_price)})
+                    subtotal += float(ad_hoc_price)
+
+                if courier_method == 'Courier Service':
+                    courier_fee = 4
+                total_amount = subtotal + courier_fee
+
+                invoice_data = {
+                    'file': selected_file,
+                    'customer': selected_customer,
+                    'items': customer_rows + ad_hoc_items,
+                    'subtotal': subtotal,
+                    'courier': courier_method,
+                    'courier_fee': courier_fee,
+                    'total': total_amount,
+                    'invoice_date': datetime.utcnow().strftime('%Y-%m-%d'),
+                    'invoice_number': f"INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+                    'payment_instructions': """
+                    Please make payment via:<br>
+                    1. Bank transfer to OCBC current account 588056739001<br>
+                    2. PAYNOW to UEN number: 201013470W<br>
+                    <strong>Cupid Apparel Pte Ltd</strong><br><br>
+                    ** Kindly indicate your FB name in the payment description, and do a screenshot of your payment
+                    """
+                }
+
+        except Exception as e:
+            error = str(e)
+
+    return render_template_string("""
+    <html>
+        <head>
+            <title>Generate Invoice</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body class="container py-5">
+            <h2 class="mb-4">🧾 Generate Invoice</h2>
+
+            <form method="post" class="mb-4">
+                <div class="mb-3">
+                    <label>Select File (Live Session)</label>
+                    <select name="selected_file" class="form-select" required onchange="this.form.submit()">
+                        <option value="">-- Select file --</option>
+                        {% for file in unique_files %}
+                            <option value="{{ file }}" {% if file == selected_file %}selected{% endif %}>{{ file }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {% if selected_file %}
+                    <div class="mb-3">
+                        <label>Select Customer</label>
+                        <select name="selected_customer" class="form-select" required onchange="this.form.submit()">
+                            <option value="">-- Select customer --</option>
+                            {% for row in file_rows %}
+                                {% if row.source_file == selected_file %}
+                                    {% set name = row.row_data['Name'] %}
+                                    {% if name %}
+                                        <option value="{{ name }}" {% if name == selected_customer %}selected{% endif %}>{{ name }}</option>
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+
+                {% if selected_customer %}
+                    <div class="mb-3">
+                        <label>Add Ad-hoc Item (Optional)</label>
+                        <input type="text" name="ad_hoc_desc" class="form-control mb-2" placeholder="Description">
+                        <input type="number" step="0.01" name="ad_hoc_price" class="form-control" placeholder="Price">
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Courier Method</label>
+                        <div>
+                            <label><input type="radio" name="courier_method" value="Courier Service" required> Courier Service (+$4)</label><br>
+                            <label><input type="radio" name="courier_method" value="Self Collection"> Self Collection</label><br>
+                            <label><input type="radio" name="courier_method" value="Accumulation"> Accumulation</label>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" type="submit">Generate Invoice</button>
+                {% endif %}
+            </form>
+
+            {% if invoice_data %}
+                <h3>Invoice: {{ invoice_data.invoice_number }}</h3>
+                <p><strong>Date:</strong> {{ invoice_data.invoice_date }}</p>
+                <p><strong>Customer:</strong> {{ invoice_data.customer }}</p>
+                <p><strong>Live Session:</strong> {{ invoice_data.file }}</p>
+
+                <table class="table table-bordered">
+                    <thead>
+                        <tr><th>Description</th><th>Price</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in invoice_data.items %}
+                            <tr>
+                                <td>{{ item.Description }}</td>
+                                <td>${{ "%.2f"|format(item.Price) }}</td>
+                            </tr>
+                        {% endfor %}
+                        <tr><td><strong>Subtotal</strong></td><td>${{ "%.2f"|format(invoice_data.subtotal) }}</td></tr>
+                        <tr><td><strong>Courier Fee</strong></td><td>${{ "%.2f"|format(invoice_data.courier_fee) }}</td></tr>
+                        <tr><td><strong>Total</strong></td><td><strong>${{ "%.2f"|format(invoice_data.total) }}</strong></td></tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-info">
+                    {{ invoice_data.payment_instructions | safe }}
+                </div>
+            {% endif %}
+
+            {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+        </body>
+    </html>
+    """, unique_files=unique_files, selected_file=selected_file, selected_customer=selected_customer, file_rows=file_rows, invoice_data=invoice_data, error=error)
 
 @app.route('/')
 @login_required
