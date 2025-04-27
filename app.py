@@ -870,10 +870,46 @@ def invoice_form():
     invoice_number = f"INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
     invoice_date = datetime.utcnow().strftime('%Y-%m-%d')
     live_session_number = "Unknown"
+    total = 0
+    courier_fee = 0
+    products = []
+    delivery = ""
+    show_invoice = False
 
     if request.method == 'POST':
-        # Handle invoice form submission here (to be coded)
-        pass
+        invoice_number = request.form.get('invoice_number')
+        invoice_date = request.form.get('invoice_date')
+        live_session_number = request.form.get('live_session_number')
+        products_raw = request.form.get('products', '')
+        delivery = request.form.get('delivery')
+
+        # Parse product lines
+        for line in products_raw.strip().split('\n'):
+            if line:
+                try:
+                    # Format: Description | Code | Price | Qty
+                    parts = [p.strip() for p in line.split('|')]
+                    desc, code, price, qty = parts
+                    price = float(price)
+                    qty = int(qty)
+                    subtotal = price * qty
+                    products.append({
+                        "desc": desc,
+                        "code": code,
+                        "price": price,
+                        "qty": qty,
+                        "subtotal": subtotal
+                    })
+                    total += subtotal
+                except Exception as e:
+                    print(f"[DEBUG] Failed to parse line: {line}, Error: {str(e)}", flush=True)
+
+        # Add courier fee
+        if delivery == "Courier Service":
+            courier_fee = 4
+            total += courier_fee
+
+        show_invoice = True
 
     return render_template_string("""
     <html>
@@ -883,28 +919,9 @@ def invoice_form():
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
         </head>
         <body class="container py-5">
-            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-                <div class="container-fluid">
-                    <a class="navbar-brand" href="/search-form">🧾 CPSApp</a>
-                    <div class="collapse navbar-collapse justify-content-between">
-                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                            <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
-                            <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
-                            <li class="nav-item"><a class="nav-link" href="/view-packlist">📦 Pack_List</a></li>
-                            <li class="nav-item"><a class="nav-link active" href="/invoice">🧾 Invoice</a></li>
-                        </ul>
-                        {% if session.get("user") %}
-                            <div class="d-flex align-items-center">
-                                <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
-                                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </nav>
-
             <h2>Create Invoice</h2>
-            <form method="post">
+            <form method="post" class="mb-5">
+                <!-- Invoice Form -->
                 <div class="mb-3">
                     <label>Invoice Number</label>
                     <input type="text" name="invoice_number" class="form-control" value="{{ invoice_number }}" readonly>
@@ -921,48 +938,76 @@ def invoice_form():
                 <!-- Product List -->
                 <h5>Products</h5>
                 <div class="mb-3">
-                    <textarea class="form-control" name="products" rows="5" placeholder="Enter product description, code, price, quantity..."></textarea>
+                    <textarea class="form-control" name="products" rows="5" placeholder="Description | Code | Price | Qty">{{ request.form.get('products', '') }}</textarea>
+                    <small class="form-text text-muted">Enter one product per line, format: Description | Code | Price | Qty</small>
                 </div>
 
                 <!-- Courier Options -->
                 <h5>Delivery Method</h5>
                 <div class="mb-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="delivery" value="Courier Service" id="courier" checked>
-                        <label class="form-check-label" for="courier">Courier Service (+$4)</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="delivery" value="Jurong Point" id="jp">
-                        <label class="form-check-label" for="jp">Self Collection @ Jurong Point</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="delivery" value="NorthPoint" id="np">
-                        <label class="form-check-label" for="np">Self Collection @ NorthPoint</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="delivery" value="Westmall" id="wm">
-                        <label class="form-check-label" for="wm">Self Collection @ Westmall</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="delivery" value="Accumulation" id="acc">
-                        <label class="form-check-label" for="acc">Accumulation</label>
-                    </div>
-                </div>
-
-                <!-- Payment Footer -->
-                <div class="mb-3">
-                    <strong>Please make payment via:</strong><br>
-                    1. Bank transfer to OCBC current account 588056739001<br>
-                    2. PAYNOW to UEN number: 201013470W<br>
-                    Cupid Apparel Pte Ltd<br><br>
-                    ** Kindly indicate your FB name in the payment description, and do a screenshot of your payment.
+                    {% for option in ["Courier Service", "Jurong Point", "NorthPoint", "Westmall", "Accumulation"] %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="delivery" value="{{ option }}" id="{{ option }}" {% if delivery == option %}checked{% endif %}>
+                            <label class="form-check-label" for="{{ option }}">{{ option }} {% if option == "Courier Service" %}(+$4){% endif %}</label>
+                        </div>
+                    {% endfor %}
                 </div>
 
                 <button type="submit" class="btn btn-primary">Generate Invoice</button>
             </form>
+
+            {% if show_invoice %}
+            <!-- Generated Invoice -->
+            <h3>🧾 Invoice</h3>
+            <p><strong>Invoice Number:</strong> {{ invoice_number }}</p>
+            <p><strong>Invoice Date:</strong> {{ invoice_date }}</p>
+            <p><strong>Live Session Number:</strong> {{ live_session_number }}</p>
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Description</th>
+                        <th>Code</th>
+                        <th>Price</th>
+                        <th>Qty</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in products %}
+                    <tr>
+                        <td>{{ item.desc }}</td>
+                        <td>{{ item.code }}</td>
+                        <td>{{ item.price }}</td>
+                        <td>{{ item.qty }}</td>
+                        <td>{{ item.subtotal }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if courier_fee %}
+                    <tr>
+                        <td colspan="4"><strong>Courier Fee</strong></td>
+                        <td>{{ courier_fee }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td colspan="4"><strong>Total</strong></td>
+                        <td><strong>{{ total }}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Payment Footer -->
+            <div class="alert alert-info">
+                <strong>Please make payment via:</strong><br>
+                1. Bank transfer to OCBC current account 588056739001<br>
+                2. PAYNOW to UEN number: 201013470W<br>
+                Cupid Apparel Pte Ltd<br><br>
+                ** Kindly indicate your FB name in the payment description, and do a screenshot of your payment.
+            </div>
+            {% endif %}
         </body>
     </html>
-    """, invoice_number=invoice_number, invoice_date=invoice_date, live_session_number=live_session_number)
+    """, invoice_number=invoice_number, invoice_date=invoice_date, live_session_number=live_session_number, products=products, courier_fee=courier_fee, total=total, delivery=delivery, show_invoice=show_invoice)
+
 
 @app.route('/')
 @login_required
