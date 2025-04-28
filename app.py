@@ -11,7 +11,7 @@ from functools import wraps
 
 # === Supabase Config ===
 SUPABASE_URL = "https://wmthdsalqsrdiwxbmfey.supabase.co"
-SUPABASE_KEY = "your-supabase-key-here"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtdGhkc2FscXNyZGl3eGJtZmV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNjE2NTEsImV4cCI6MjA1OTgzNzY1MX0.3_3iBmNy9VM5BRycEKLvTfBBCRQkjJF7kP0EN-VZH68"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # === Flask App Config ===
