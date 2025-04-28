@@ -8,27 +8,24 @@ from datetime import datetime
 from flask import Flask, request, jsonify, render_template_string, redirect, url_for, session
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
-from openpyxl import load_workbook
-from collections import defaultdict
 
 # === Supabase Config ===
 SUPABASE_URL = "https://wmthdsalqsrdiwxbmfey.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtdGhkc2FscXNyZGl3eGJtZmV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNjE2NTEsImV4cCI6MjA1OTgzNzY1MX0.3_3iBmNy9VM5BRycEKLvTfBBCRQkjJF7kP0EN-VZH68"
+SUPABASE_KEY = "your-supabase-key-here"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# === Flask App ===
+# === Flask App Config ===
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey123")
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# === Users ===
+# === User Authentication ===
 users = {
     "ailianyvette@gmail.com": generate_password_hash("jojo16022001"),
     "kuoyen23@yahoo.com": generate_password_hash("jojo16022001")
 }
 
-# === Login Required Decorator ===
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -37,7 +34,6 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# === Login Route ===
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     message = None
@@ -52,171 +48,216 @@ def login():
 
     return render_template_string("""
     <html>
-        <head><title>Login</title></head>
-        <body>
-            <h2>Login</h2>
+        <head>
+            <title>Login</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body class="container py-5">
+            <h2 class="mb-4">🔐 Login to CPSApp</h2>
             {% if message %}
-                <p>{{ message }}</p>
+                <div class="alert alert-danger">{{ message }}</div>
             {% endif %}
             <form method="post">
-                <input type="email" name="email" required>
-                <input type="password" name="password" required>
-                <button type="submit">Login</button>
+                <div class="mb-3">
+                    <label>Email</label>
+                    <input type="email" name="email" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label>Password</label>
+                    <input type="password" name="password" class="form-control" required>
+                </div>
+                <button class="btn btn-primary" type="submit">Login</button>
             </form>
         </body>
     </html>
     """, message=message)
 
-# === Logout ===
 @app.route('/logout')
 def logout():
     session.pop('user', None)
     return redirect(url_for('login'))
 
-# === Generate Invoice Form ===
-@app.route('/invoice', methods=['GET', 'POST'])
-@login_required
-def invoice_form():
-    invoice_number = f"INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
-    invoice_date = datetime.utcnow().strftime('%Y-%m-%d')
-    live_session_number = ""
-    total = 0
-    courier_fee = 0
-    products = []
-    delivery = ""
-    show_invoice = False
-
-    if request.method == 'POST':
-        invoice_number = request.form.get('invoice_number')
-        invoice_date = request.form.get('invoice_date')
-        live_session_number = request.form.get('live_session_number')
-        products_raw = request.form.get('products', '')
-        delivery = request.form.get('delivery')
-
-        for line in products_raw.strip().split('\n'):
-            if line:
-                try:
-                    parts = [p.strip() for p in line.split('|')]
-                    desc, code, price, qty = parts
-                    price = float(price)
-                    qty = int(qty)
-                    subtotal = price * qty
-                    products.append({
-                        "desc": desc,
-                        "code": code,
-                        "price": price,
-                        "qty": qty,
-                        "subtotal": subtotal
-                    })
-                    total += subtotal
-                except Exception as e:
-                    print(f"[DEBUG] Failed to parse line: {line}, Error: {str(e)}", flush=True)
-
-        if delivery == "Courier Service":
-            courier_fee = 4
-            total += courier_fee
-
-        show_invoice = True
-
-    return render_template_string("""
-    <html>
-        <head>
-            <title>🧾 Create Invoice</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        </head>
-        <body class="container py-5">
-            <h2>Create Invoice</h2>
-            <form method="post" class="mb-5">
-                <div class="mb-3">
-                    <label>Invoice Number</label>
-                    <input type="text" name="invoice_number" class="form-control" value="{{ invoice_number }}" readonly>
-                </div>
-                <div class="mb-3">
-                    <label>Invoice Date</label>
-                    <input type="text" name="invoice_date" class="form-control" value="{{ invoice_date }}" readonly>
-                </div>
-                <div class="mb-3">
-                    <label>Live Session Number</label>
-                    <input type="text" name="live_session_number" class="form-control" value="{{ live_session_number }}">
-                </div>
-
-                <h5>Products</h5>
-                <div class="mb-3">
-                    <textarea class="form-control" name="products" rows="5" placeholder="Description | Code | Price | Qty">{{ request.form.get('products', '') }}</textarea>
-                    <small class="form-text text-muted">Enter one product per line, format: Description | Code | Price | Qty</small>
-                </div>
-
-                <h5>Delivery Method</h5>
-                <div class="mb-3">
-                    {% for option in ["Courier Service", "Jurong Point", "NorthPoint", "Westmall", "Accumulation"] %}
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="delivery" value="{{ option }}" id="{{ option }}" {% if delivery == option %}checked{% endif %}>
-                            <label class="form-check-label" for="{{ option }}">{{ option }} {% if option == "Courier Service" %}(+$4){% endif %}</label>
-                        </div>
-                    {% endfor %}
-                </div>
-
-                <button type="submit" class="btn btn-primary">Generate Invoice</button>
-            </form>
-
-            {% if show_invoice %}
-            <h3>🧾 Invoice</h3>
-            <p><strong>Invoice Number:</strong> {{ invoice_number }}</p>
-            <p><strong>Invoice Date:</strong> {{ invoice_date }}</p>
-            <p><strong>Live Session Number:</strong> {{ live_session_number }}</p>
-            <table class="table table-bordered">
-                <thead class="table-light">
-                    <tr>
-                        <th>Description</th>
-                        <th>Code</th>
-                        <th>Price</th>
-                        <th>Qty</th>
-                        <th>Subtotal</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in products %}
-                    <tr>
-                        <td>{{ item.desc }}</td>
-                        <td>{{ item.code }}</td>
-                        <td>{{ item.price }}</td>
-                        <td>{{ item.qty }}</td>
-                        <td>{{ item.subtotal }}</td>
-                    </tr>
-                    {% endfor %}
-                    {% if courier_fee %}
-                    <tr>
-                        <td colspan="4"><strong>Courier Fee</strong></td>
-                        <td>{{ courier_fee }}</td>
-                    </tr>
-                    {% endif %}
-                    <tr>
-                        <td colspan="4"><strong>Total</strong></td>
-                        <td><strong>{{ total }}</strong></td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div class="alert alert-info">
-                <strong>Please make payment via:</strong><br>
-                1. Bank transfer to OCBC current account 588056739001<br>
-                2. PAYNOW to UEN number: 201013470W<br>
-                Cupid Apparel Pte Ltd<br><br>
-                ** Kindly indicate your FB name in the payment description, and do a screenshot of your payment.
-            </div>
-            {% endif %}
-        </body>
-    </html>
-    """, invoice_number=invoice_number, invoice_date=invoice_date, live_session_number=live_session_number, products=products, courier_fee=courier_fee, total=total, delivery=delivery, show_invoice=show_invoice)
-
-# === Default Home Redirect ===
+# === Index Redirect to Search ===
 @app.route('/')
 @login_required
 def index():
-    return redirect(url_for('search_form'))  # Or any default route like invoice_form
+    return redirect(url_for('search_form'))
+
+# === Upload Form ===
+@app.route('/upload-form', methods=['GET', 'POST'])
+@login_required
+def upload_form():
+    message = None
+    if request.method == 'POST':
+        if 'file' not in request.files or request.files['file'].filename == '':
+            message = "No file selected."
+        else:
+            file = request.files['file']
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+
+            try:
+                # Handle Master, Pack_List, Bill (simplified for brevity)
+                df = pd.read_excel(filepath, sheet_name='Master')
+                for _, row in df.iterrows():
+                    code_raw = str(row['Code'])
+                    code = code_raw.replace("Code:", "").strip()
+                    data = {
+                        "design_number": int(row['Design Number']),
+                        "description": row['Description'],
+                        "price": float(row['Price']),
+                        "color": row['Color'],
+                        "code": code,
+                        "upload_date": datetime.utcnow().isoformat(),
+                        "source_file": filename
+                    }
+                    supabase.table("products").insert(data).execute()
+
+                message = "✅ Upload successful!"
+            except Exception as e:
+                message = f"❌ Upload failed: {str(e)}"
+
+    return render_template_string("""
+    <html>
+        <head><title>Upload Product Excel</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head>
+        <body class="container py-5">
+            <h2>📤 Upload Product Excel File</h2>
+            {% if message %}
+                <div class="alert alert-info">{{ message }}</div>
+            {% endif %}
+            <form method="post" enctype="multipart/form-data">
+                <div class="mb-3"><input class="form-control" type="file" name="file" required></div>
+                <button class="btn btn-primary" type="submit">Upload File</button>
+            </form>
+        </body>
+    </html>
+    """, message=message)
+
+# === Search & Delete ===
+@app.route('/search-form', methods=['GET', 'POST'])
+@login_required
+def search_form():
+    query = ""
+    results = []
+    message = request.args.get('msg')
+
+    if request.method == 'POST':
+        query = request.form.get('query', '')
+        if query:
+            products = supabase.table('products').select("*").ilike('code', f'%{query}%').execute().data
+            results.extend(products)
+
+    return render_template_string("""
+    <html>
+    <head><title>Search</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body class="container py-5">
+        <h2>🔍 Search & Delete</h2>
+        <form method="post" class="mb-4">
+            <div class="input-group">
+                <input type="text" class="form-control" name="query" placeholder="Enter code or description" value="{{ query }}" required>
+                <button class="btn btn-primary" type="submit">Search</button>
+            </div>
+        </form>
+        {% if results %}
+            <table class="table table-bordered">
+                <thead>
+                    <tr><th>Code</th><th>Description</th><th>Price</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                    {% for row in results %}
+                        <tr>
+                            <td>{{ row.code }}</td>
+                            <td>{{ row.description }}</td>
+                            <td>{{ row.price }}</td>
+                            <td>
+                                <form method="post" action="/delete/{{ row.id }}" onsubmit="return confirm('Delete this row?');">
+                                    <button class="btn btn-sm btn-danger">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% elif query %}
+            <div class="alert alert-warning">No results found.</div>
+        {% endif %}
+    </body>
+    </html>
+    """, query=query, results=results, message=message)
+
+# === View Pack_List ===
+@app.route('/view-packlist', methods=['GET', 'POST'])
+@login_required
+def view_packlist():
+    selected_file = None
+    packlist_df = None
+    error = None
+
+    file_rows = supabase.table("packlist").select("source_file").execute().data
+    unique_files = sorted({r["source_file"] for r in file_rows if r.get("source_file")}, reverse=True)
+
+    if request.method == 'POST':
+        selected_file = request.form.get('selected_file')
+        try:
+            rows = supabase.table("packlist").select("row_data").eq("source_file", selected_file).order("row_index").execute().data
+            if rows:
+                packlist_df = pd.DataFrame([row['row_data'] for row in rows])
+            else:
+                error = f"❌ No Pack_List data found for file: {selected_file}"
+        except Exception as e:
+            error = f"❌ Error loading Pack_List from Supabase: {str(e)}"
+
+    return render_template_string("""
+    <html>
+        <head><title>📦 View Pack_List</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head>
+        <body class="container py-5">
+            <h2>📦 View Pack_List Sheet</h2>
+            <form method="post" class="mb-4">
+                <div class="input-group">
+                    <select name="selected_file" class="form-select" required>
+                        <option value="">-- Select uploaded file --</option>
+                        {% for file in unique_files %}
+                            <option value="{{ file }}" {% if file == selected_file %}selected{% endif %}>{{ file }}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-primary" type="submit">View Pack_List</button>
+                </div>
+            </form>
+            {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+            {% if packlist_df is not none %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                {% for col in packlist_df.columns %}
+                                    <th>{{ col }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for _, row in packlist_df.iterrows() %}
+                                <tr>
+                                    {% for cell in row %}
+                                        <td>{{ cell }}</td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </body>
+    </html>
+    """, unique_files=unique_files, selected_file=selected_file, packlist_df=packlist_df, error=error)
 
 # === Run App ===
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5002))
-    app.run(host='0.0.0.0', port=port,debug=True)
+    app.run(host='0.0.0.0', port=port)
