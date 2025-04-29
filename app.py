@@ -890,20 +890,25 @@ def generate_invoice():
     # Build unique file list
     unique_files = sorted(file_to_rows.keys(), reverse=True)
 
-    # Build customer list per file
-    customer_list = []
-    if selected_file := request.form.get("selected_file"):
-        all_rows = file_to_rows.get(selected_file, [])
-        customer_list = sorted(set(str(r.get("Name", "")).strip() for r in all_rows if r.get("Name")))
+    # Determine selected file and build customer list
+    selected_file = request.form.get("selected_file")
+    all_rows = file_to_rows.get(selected_file, []) if selected_file else []
+    customer_to_rows = {}
+    for r in all_rows:
+        name = str(r.get("Name", "")).strip()
+        if name:
+            customer_to_rows.setdefault(name, []).append(r)
 
-    # When customer is selected, process invoice
-    if request.method == 'POST':
+    customer_list = sorted(customer_to_rows.keys())
+
+    # If customer selected, build invoice
+    if selected_file and request.form.get("selected_customer"):
         selected_customer = request.form.get("selected_customer")
         courier_method = request.form.get("courier_method")
         ad_hoc_desc = request.form.get("ad_hoc_desc")
         ad_hoc_price = request.form.get("ad_hoc_price")
 
-        customer_rows = [r for r in file_to_rows.get(selected_file, []) if str(r.get("Name", "")).strip() == selected_customer]
+        customer_rows = customer_to_rows.get(selected_customer, [])
 
         if not customer_rows:
             error = f"No purchases found for {selected_customer} in {selected_file}."
@@ -916,8 +921,8 @@ def generate_invoice():
                     price = float(r.get("Price", 0))
                     subtotal += price
                     items.append({"Description": desc, "Price": price})
-                except Exception as e:
-                    continue  # Skip malformed rows
+                except Exception:
+                    continue
 
             if ad_hoc_desc and ad_hoc_price:
                 try:
@@ -1037,6 +1042,7 @@ def generate_invoice():
         </body>
     </html>
     """, unique_files=unique_files, selected_file=selected_file, selected_customer=selected_customer, customer_list=customer_list, invoice_data=invoice_data, error=error)
+
 
 @app.route('/')
 @login_required
