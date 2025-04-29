@@ -52,7 +52,7 @@ def login():
 
         if email in users and check_password_hash(users[email], password):
             session['user'] = email
-            return redirect(url_for('upload_form'))
+            return redirect(url_for('search_form'))
         else:
             message = "❌ Invalid credentials."
 
@@ -387,10 +387,14 @@ def delete_by_file():
     if not filename:
         return "No file name provided", 400
     try:
+        # Delete from all relevant tables
         supabase.table("products").delete().eq("source_file", filename).execute()
+        supabase.table("packlist").delete().eq("source_file", filename).execute()
+        supabase.table("bills").delete().eq("source_file", filename).execute()
         return redirect(url_for('search_form', msg='bulk_deleted', filename=filename))
     except Exception as e:
         return f"Error deleting rows from file: {str(e)}", 500
+
 
 
 @app.route('/search-form', methods=['GET', 'POST'])
@@ -563,6 +567,13 @@ def search_form():
     {% endif %}
 </body>
 </html>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.querySelector('input[name="query"]');
+        searchInput.blur();  // Remove focus after page load
+    });
+</script>
+                                  
 
     """, results=results, query=query, message=message, filename=filename, unique_files=unique_files)
 
