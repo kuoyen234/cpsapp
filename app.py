@@ -871,75 +871,84 @@ def invoice():
 def generate_invoice():
     selected_file = None
     selected_customer = None
-    customer_rows = []
     invoice_data = None
+    error = None
     courier_fee = 0
     total_amount = 0
-    error = None
 
-    # Fetch all bill rows
-    bill_rows = supabase.table("bills").select("source_file", "row_data").execute().data
-    unique_files = sorted({r["source_file"] for r in bill_rows if r.get("source_file")}, reverse=True)
+    # Fetch all bill data
+    file_rows = supabase.table("bills").select("source_file, row_data").execute().data
 
-    customer_names = []
+    # Group by file
+    file_to_rows = {}
+    for row in file_rows:
+        file = row.get("source_file")
+        row_data = row.get("row_data", {})
+        if file:
+            file_to_rows.setdefault(file, []).append(row_data)
 
+    # Build unique file list
+    unique_files = sorted(file_to_rows.keys(), reverse=True)
+
+    # Build customer list per file
+    customer_list = []
+    if selected_file := request.form.get("selected_file"):
+        all_rows = file_to_rows.get(selected_file, [])
+        customer_list = sorted(set(str(r.get("Name", "")).strip() for r in all_rows if r.get("Name")))
+
+    # When customer is selected, process invoice
     if request.method == 'POST':
-        selected_file = request.form.get('selected_file')
-        selected_customer = request.form.get('selected_customer')
-        courier_method = request.form.get('courier_method')
-        ad_hoc_desc = request.form.get('ad_hoc_desc')
-        ad_hoc_price = request.form.get('ad_hoc_price')
+        selected_customer = request.form.get("selected_customer")
+        courier_method = request.form.get("courier_method")
+        ad_hoc_desc = request.form.get("ad_hoc_desc")
+        ad_hoc_price = request.form.get("ad_hoc_price")
 
-        # Build customer dropdown
-        customer_names = sorted({
-            row['row_data'].get('Name', '').strip()
-            for row in bill_rows
-            if row.get('source_file') == selected_file and row['row_data'].get('Name')
-        })
+        customer_rows = [r for r in file_to_rows.get(selected_file, []) if str(r.get("Name", "")).strip() == selected_customer]
 
-        try:
-            # Filter rows for selected customer
-            customer_rows = [
-                row['row_data'] for row in bill_rows
-                if row['source_file'] == selected_file and
-                   str(row['row_data'].get('Name')).strip() == selected_customer
-            ]
+        if not customer_rows:
+            error = f"No purchases found for {selected_customer} in {selected_file}."
+        else:
+            subtotal = 0
+            items = []
+            for r in customer_rows:
+                try:
+                    desc = str(r.get("Description", "")).strip()
+                    price = float(r.get("Price", 0))
+                    subtotal += price
+                    items.append({"Description": desc, "Price": price})
+                except Exception as e:
+                    continue  # Skip malformed rows
 
-            if not customer_rows:
-                error = f"No purchases found for {selected_customer} in {selected_file}."
-            else:
-                subtotal = sum(float(r['Price']) for r in customer_rows if r.get('Price'))
+            if ad_hoc_desc and ad_hoc_price:
+                try:
+                    ad_price = float(ad_hoc_price)
+                    items.append({"Description": ad_hoc_desc, "Price": ad_price})
+                    subtotal += ad_price
+                except:
+                    pass
 
-                ad_hoc_items = []
-                if ad_hoc_desc and ad_hoc_price:
-                    ad_hoc_items.append({'Description': ad_hoc_desc, 'Price': float(ad_hoc_price)})
-                    subtotal += float(ad_hoc_price)
+            if courier_method == 'Courier Service':
+                courier_fee = 4
+            total_amount = subtotal + courier_fee
 
-                if courier_method == 'Courier Service':
-                    courier_fee = 4
-                total_amount = subtotal + courier_fee
-
-                invoice_data = {
-                    'file': selected_file,
-                    'customer': selected_customer,
-                    'items': customer_rows + ad_hoc_items,
-                    'subtotal': subtotal,
-                    'courier': courier_method,
-                    'courier_fee': courier_fee,
-                    'total': total_amount,
-                    'invoice_date': datetime.utcnow().strftime('%Y-%m-%d'),
-                    'invoice_number': f"INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
-                    'payment_instructions': """
-                    Please make payment via:<br>
-                    1. Bank transfer to OCBC current account 588056739001<br>
-                    2. PAYNOW to UEN number: 201013470W<br>
-                    <strong>Cupid Apparel Pte Ltd</strong><br><br>
-                    ** Kindly indicate your FB name in the payment description, and do a screenshot of your payment
-                    """
-                }
-
-        except Exception as e:
-            error = str(e)
+            invoice_data = {
+                'file': selected_file,
+                'customer': selected_customer,
+                'items': items,
+                'subtotal': subtotal,
+                'courier': courier_method,
+                'courier_fee': courier_fee,
+                'total': total_amount,
+                'invoice_date': datetime.utcnow().strftime('%Y-%m-%d'),
+                'invoice_number': f"INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+                'payment_instructions': """
+                Please make payment via:<br>
+                1. Bank transfer to OCBC current account 588056739001<br>
+                2. PAYNOW to UEN number: 201013470W<br>
+                <strong>Cupid Apparel Pte Ltd</strong><br><br>
+                ** Kindly indicate your FB name in the payment description, and do a screenshot of your payment
+                """
+            }
 
     return render_template_string("""
     <html>
@@ -967,7 +976,7 @@ def generate_invoice():
                         <label>Select Customer</label>
                         <select name="selected_customer" class="form-select" required onchange="this.form.submit()">
                             <option value="">-- Select customer --</option>
-                            {% for name in customer_names %}
+                            {% for name in customer_list %}
                                 <option value="{{ name }}" {% if name == selected_customer %}selected{% endif %}>{{ name }}</option>
                             {% endfor %}
                         </select>
@@ -1027,7 +1036,7 @@ def generate_invoice():
             {% endif %}
         </body>
     </html>
-    """, unique_files=unique_files, selected_file=selected_file, selected_customer=selected_customer, customer_names=customer_names, invoice_data=invoice_data, error=error)
+    """, unique_files=unique_files, selected_file=selected_file, selected_customer=selected_customer, customer_list=customer_list, invoice_data=invoice_data, error=error)
 
 @app.route('/')
 @login_required
