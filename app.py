@@ -135,7 +135,7 @@ def upload():
                         'code': str(code),
                         'description': row[i_desc],
                         'price': float(row[i_price] or 0),
-                        'quantity': int(row[i_qty] or 0),
+                        'total_quantity': int(row[i_qty] or 0),
                         'uploaded_at': datetime.utcnow().isoformat()
                     })
                 if batch:
