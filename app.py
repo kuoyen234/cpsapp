@@ -112,7 +112,7 @@ def upload():
     message = None
     if request.method=='POST':
         f = request.files.get('file')
-        if f and f.filename.lower().endswith(('.xls','.xlsx,xlsm')):
+        if f and f.filename.lower().endswith(('.xls','.xlsx,.xlsm')):
             fn = secure_filename(f.filename)
             path = os.path.join(app.config['UPLOAD_FOLDER'], fn)
             f.save(path)
