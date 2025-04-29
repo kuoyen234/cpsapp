@@ -338,6 +338,10 @@ def upload_form():
                         <li class="nav-item">
                         <a class="nav-link {% if request.path == '/view-packlist' %}active{% endif %}" href="/view-packlist">📦 Pack_List</a>
                         </li>
+                        <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a>
+                        </li>
+
                     </ul>
                     {% if session.get("user") %}
                         <div class="d-flex align-items-center">
@@ -468,6 +472,9 @@ def search_form():
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a>
                     </li>
                 </ul>
                 {% if session.get("user") %}
@@ -645,6 +652,9 @@ def view_packlist():
                             <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
                             <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
                             <li class="nav-item"><a class="nav-link active" href="/view-packlist">📦 Pack_List</a></li>
+                            <li class="nav-item">
+                            <a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a>
+                            </li>
                         </ul>
                         {% if session.get("user") %}
                             <div class="d-flex align-items-center">
