@@ -341,6 +341,9 @@ def upload_form():
                         <li class="nav-item">
                         <a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a>
                         </li>
+                        <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/generate-invoice' %}active{% endif %}" href="/generate-invoice">🧾 Generate Invoice</a>
+                        </li>
 
                     </ul>
                     {% if session.get("user") %}
@@ -475,6 +478,9 @@ def search_form():
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/generate-invoice' %}active{% endif %}" href="/generate-invoice">🧾 Generate Invoice</a>
                     </li>
                 </ul>
                 {% if session.get("user") %}
@@ -654,6 +660,9 @@ def view_packlist():
                             <li class="nav-item"><a class="nav-link active" href="/view-packlist">📦 Pack_List</a></li>
                             <li class="nav-item">
                             <a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a>
+                            </li>
+                            <li class="nav-item">
+                            <a class="nav-link {% if request.path == '/generate-invoice' %}active{% endif %}" href="/generate-invoice">🧾 Generate Invoice</a>
                             </li>
                         </ul>
                         {% if session.get("user") %}
