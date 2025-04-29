@@ -1024,8 +1024,6 @@ def generate_invoice():
     </body>
     </html>
     """, unique_files=unique_files, selected_file=selected_file, selected_customer=selected_customer, file_rows=file_rows, invoice_data=invoice_data, error=error)
-```
-
 
 @app.route('/')
 @login_required
