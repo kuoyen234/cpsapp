@@ -112,7 +112,7 @@ def upload():
     message = None
     if request.method=='POST':
         f = request.files.get('file')
-        if f and f.filename.lower().endswith(('.xls','.xlsx')):
+        if f and f.filename.lower().endswith(('.xls','.xlsx,xlsm')):
             fn = secure_filename(f.filename)
             path = os.path.join(app.config['UPLOAD_FOLDER'], fn)
             f.save(path)
@@ -162,7 +162,7 @@ def upload():
   {{% if message %}}<div class="alert alert-info">{{{{ message }}}}</div>{{% endif %}}
   <form method="post" enctype="multipart/form-data">
     <div class="mb-3">
-      <input type="file" name="file" class="form-control" accept=".xls,.xlsx" required>
+      <input type="file" name="file" class="form-control" accept=".xls,.xlsx,.xlsm" required>
     </div>
     <button class="btn btn-success">Upload & Import</button>
   </form>
