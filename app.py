@@ -719,6 +719,153 @@ def view_packlist():
     </html>
     """, unique_files=unique_files, selected_file=selected_file, packlist_df=packlist_df, error=error)
 
+@app.route('/invoice', methods=['GET', 'POST'])
+@login_required
+def invoice():
+    invoice_number = f"INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+    invoice_date = datetime.utcnow().strftime('%Y-%m-%d')
+    live_session_number = ""
+    products = []
+    courier_fee = 0
+    total_amount = 0
+    delivery_method = ""
+    show_invoice = False
+
+    if request.method == 'POST':
+        invoice_number = request.form.get('invoice_number')
+        invoice_date = request.form.get('invoice_date')
+        live_session_number = request.form.get('live_session_number')
+        products_raw = request.form.get('products', '')
+        delivery_method = request.form.get('delivery_method')
+
+        # Parse Products
+        for line in products_raw.strip().split('\n'):
+            if line.strip():
+                try:
+                    desc, code, price, qty = [p.strip() for p in line.split('|')]
+                    price = float(price)
+                    qty = int(qty)
+                    subtotal = price * qty
+                    products.append({
+                        'desc': desc,
+                        'code': code,
+                        'price': price,
+                        'qty': qty,
+                        'subtotal': subtotal
+                    })
+                    total_amount += subtotal
+                except Exception as e:
+                    print(f"[ERROR] Failed to parse line: {line}, Error: {e}", flush=True)
+
+        if delivery_method == 'Courier Service':
+            courier_fee = 4
+            total_amount += courier_fee
+
+        show_invoice = True
+
+    return render_template_string("""
+    <html>
+    <head>
+        <title>Create Invoice</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body class="container py-5">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/search-form">🧾 CPSApp</a>
+                <div class="collapse navbar-collapse">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/view-packlist">📦 Pack_List</a></li>
+                        <li class="nav-item"><a class="nav-link active" href="/invoice">🧾 Invoice</a></li>
+                    </ul>
+                    {% if session.get("user") %}
+                        <div class="d-flex align-items-center">
+                            <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
+                            <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </nav>
+
+        <h2 class="mb-4">🧾 Create Invoice</h2>
+        <form method="post">
+            <div class="mb-3">
+                <label>Invoice Number</label>
+                <input type="text" name="invoice_number" class="form-control" value="{{ invoice_number }}" readonly>
+            </div>
+            <div class="mb-3">
+                <label>Invoice Date</label>
+                <input type="text" name="invoice_date" class="form-control" value="{{ invoice_date }}" readonly>
+            </div>
+            <div class="mb-3">
+                <label>Live Session Number</label>
+                <input type="text" name="live_session_number" class="form-control" value="{{ live_session_number }}">
+            </div>
+            <div class="mb-3">
+                <label>Products</label>
+                <textarea name="products" class="form-control" rows="5" placeholder="Format: Description | Code | Price | Qty"></textarea>
+                <small class="text-muted">One line per product, separated by |</small>
+            </div>
+            <div class="mb-3">
+                <label>Delivery Method</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="delivery_method" value="Courier Service" id="courier" required>
+                    <label class="form-check-label" for="courier">Courier Service (+$4)</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="delivery_method" value="Self Collection" id="self">
+                    <label class="form-check-label" for="self">Self Collection</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="delivery_method" value="Accumulation" id="accumulation">
+                    <label class="form-check-label" for="accumulation">Accumulation</label>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Generate Invoice</button>
+        </form>
+
+        {% if show_invoice %}
+            <h3 class="mt-5">Invoice</h3>
+            <p><strong>Invoice Number:</strong> {{ invoice_number }}</p>
+            <p><strong>Invoice Date:</strong> {{ invoice_date }}</p>
+            <p><strong>Live Session:</strong> {{ live_session_number }}</p>
+            <table class="table table-bordered">
+                <thead><tr><th>Description</th><th>Code</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr></thead>
+                <tbody>
+                {% for p in products %}
+                    <tr>
+                        <td>{{ p.desc }}</td>
+                        <td>{{ p.code }}</td>
+                        <td>${{ "%.2f"|format(p.price) }}</td>
+                        <td>{{ p.qty }}</td>
+                        <td>${{ "%.2f"|format(p.subtotal) }}</td>
+                    </tr>
+                {% endfor %}
+                    {% if courier_fee %}
+                    <tr><td colspan="4"><strong>Courier Fee</strong></td><td>${{ courier_fee }}</td></tr>
+                    {% endif %}
+                    <tr><td colspan="4"><strong>Total</strong></td><td><strong>${{ total_amount }}</strong></td></tr>
+                </tbody>
+            </table>
+
+            <div class="alert alert-info">
+                <strong>Payment Instructions:</strong><br>
+                1. Bank transfer to OCBC current account 588056739001<br>
+                2. PAYNOW to UEN number: 201013470W<br>
+                Cupid Apparel Pte Ltd<br><br>
+                <strong>** Kindly indicate your FB name in the payment description, and screenshot your payment.</strong>
+            </div>
+        {% endif %}
+    </body>
+    </html>
+    """, invoice_number=invoice_number, invoice_date=invoice_date, live_session_number=live_session_number,
+       products=products, courier_fee=courier_fee, total_amount=total_amount,
+       show_invoice=show_invoice)
+
 @app.route('/generate-invoice', methods=['GET', 'POST'])
 @login_required
 def generate_invoice():
@@ -945,8 +1092,6 @@ def generate_invoice():
     </body>
     </html>
     """, unique_files=unique_files, selected_file=selected_file, selected_customer=selected_customer, customer_list=customer_list, invoice_data=invoice_data, error=error)
-
-
 
 
 
