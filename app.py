@@ -949,7 +949,7 @@ def generate_invoice():
 
             collection_info = ""
             if courier_method == "Self Collection":
-                collection_info = f"Choose outlet: {outlet_option}"
+                collection_info = outlet_option
 
             invoice_lines = [
                 f"Invoice Number: INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
@@ -967,7 +967,7 @@ def generate_invoice():
                 invoice_lines.append(f"Courier Fee: ${courier_fee:.2f}")
             invoice_lines.append(f"Total: ${total_amount:.2f}")
             if collection_info:
-                invoice_lines.append(f"Outlet Info: {collection_info}")
+                invoice_lines.append(f"Self Collection Location: {outlet_option}")
             invoice_lines.append("\nPlease make payment via:")
             invoice_lines.append("1. Bank transfer to OCBC current account 588056739001")
             invoice_lines.append("2. PAYNOW to UEN number: 201013470W")
