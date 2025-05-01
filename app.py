@@ -1007,46 +1007,65 @@ def generate_invoice():
     <body class="container py-5">
         <h2 class="mb-4">🧾 Generate Invoice</h2>
 
-        <form method="post">
-            <div class="mb-3">
-                <label>Select File (Live Session)</label>
-                <select name="selected_file" class="form-select" onchange="this.form.submit()">
-                    <option value="">-- Select file --</option>
-                    {% for f in unique_files %}
-                        <option value="{{ f }}" {% if f == selected_file %}selected{% endif %}>{{ f }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+       <form method="post">
+  <div class="mb-3">
+    <label>Select File (Live Session)</label>
+    <select name="selected_file" class="form-select" onchange="this.form.submit()">
+      <option value="">-- Select file --</option>
+      {% for f in unique_files %}
+        <option value="{{ f }}" {% if f == selected_file %}selected{% endif %}>{{ f }}</option>
+      {% endfor %}
+    </select>
+  </div>
 
-            {% if selected_file %}
-            <div class="mb-3">
-                <label>Select Customer</label>
-                <select name="selected_customer" class="form-select" onchange="this.form.submit()">
-                    <option value="">-- Select customer --</option>
-                    {% for c in customer_list %}
-                        <option value="{{ c }}" {% if c == selected_customer %}selected{% endif %}>{{ c }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
+  {% if selected_file %}
+  <div class="mb-3">
+    <label>Select Customer</label>
+    <select name="selected_customer" class="form-select" onchange="this.form.submit()">
+      <option value="">-- Select customer --</option>
+      {% for c in customer_list %}
+        <option value="{{ c }}" {% if c == selected_customer %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
 
-            {% if selected_customer %}
-            <div class="mb-3">
-                <label>Courier Method</label>
-                <div>
-                    <label><input type="radio" name="courier_method" value="Courier Service" required> Courier Service (+$4)</label><br>
-                    <label><input type="radio" name="courier_method" value="Self Collection"> Self Collection (Free)</label><br>
-                    <label><input type="radio" name="courier_method" value="Accumulation"> Accumulation (Free)</label>
-                </div>
-            </div>
-            <div class="mb-3">
-                <label>Ad-hoc Item (Optional)</label>
-                <input type="text" name="ad_hoc_desc" class="form-control mb-2" placeholder="Description">
-                <input type="number" step="0.01" name="ad_hoc_price" class="form-control" placeholder="Price">
-            </div>
-            <button class="btn btn-primary" type="submit">Preview Invoice</button>
-            {% endif %}
-        </form>
+  {% if selected_customer %}
+  <div class="mb-3">
+    <label>Courier Method</label>
+    <div>
+      <label>
+        <input type="radio" name="courier_method" value="Courier Service" required>
+        Courier Service (+$4)
+      </label><br>
+      <label>
+        <input type="radio" name="courier_method" value="Self Collection">
+        Self Collection (Free)
+      </label><br>
+      <div class="mt-2">
+        <select name="outlet_option" class="form-select">
+          <option value="">-- Select Outlet --</option>
+          <option value="Westmall">Westmall</option>
+          <option value="Jurong Point 2">Jurong Point 2</option>
+          <option value="Northpoint City">Northpoint City</option>
+        </select>
+      </div>
+      <label>
+        <input type="radio" name="courier_method" value="Accumulation">
+        Accumulation (Free)
+      </label>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label>Ad-hoc Item (Optional)</label>
+    <input type="text" name="ad_hoc_desc" class="form-control mb-2" placeholder="Description">
+    <input type="number" step="0.01" name="ad_hoc_price" class="form-control" placeholder="Price">
+  </div>
+  <button class="btn btn-primary" type="submit">Preview Invoice</button>
+  {% endif %}
+</form>
+
 
         {% if invoice_data %}
         <div class="mt-4">
