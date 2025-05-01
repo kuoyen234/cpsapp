@@ -323,40 +323,29 @@ def upload_form():
         <body class="container py-5">
            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
                 <div class="container-fluid">
-                    <a class="navbar-brand" href="/">🧾 2PM App</a>
+                    <a class="navbar-brand" href="/search-form">🧾 CPSApp</a>
                     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                     </button>
+                    
                     <div class="collapse navbar-collapse" id="mainNavbar">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                        <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/upload-form' %}active{% endif %}" href="/upload-form">📤 Upload</a>
-                        </li>
-                        <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/search-form' %}active{% endif %}" href="/search-form">🔍 Search & Delete</a>
-                        </li>
-                        <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/view-packlist' %}active{% endif %}" href="/view-packlist">📦 Pack_List</a>
-                        </li>
-                        <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a>
-                        </li>
-                        <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/generate-invoice' %}active{% endif %}" href="/generate-invoice">🧾 Generate Invoice</a>
-                        </li>
-
+                        <li class="nav-item"><a class="nav-link {% if request.path == '/upload-form' %}active{% endif %}" href="/upload-form">📤 Upload</a></li>
+                        <li class="nav-item"><a class="nav-link {% if request.path == '/search-form' %}active{% endif %}" href="/search-form">🔍 Search & Delete</a></li>
+                        <li class="nav-item"><a class="nav-link {% if request.path == '/view-packlist' %}active{% endif %}" href="/view-packlist">📦 Pack_List</a></li>
+                        <li class="nav-item"><a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a></li>
+                        <li class="nav-item"><a class="nav-link {% if request.path == '/generate-invoice' %}active{% endif %}" href="/generate-invoice">🧾 Generate Invoice</a></li>
                     </ul>
                     {% if session.get("user") %}
-                        <div class="d-flex align-items-center">
-                        <span class="navbar-text text-white me-3">
-                            👋 {{ session['user'] }}
-                        </span>
+                    <div class="d-flex align-items-center">
+                        <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
                         <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
-                        </div>
+                    </div>
                     {% endif %}
                     </div>
                 </div>
             </nav>
+
 
             <h2 class="mb-4">📤 Upload Product Excel File</h2>
             {% if message %}
@@ -465,30 +454,24 @@ def search_form():
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container-fluid">
             <a class="navbar-brand" href="/search-form">🧾 CPSApp</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+            </button>
+            
             <div class="collapse navbar-collapse" id="mainNavbar">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/upload-form">📤 Upload</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="/search-form">🔍 Search & Delete</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/view-packlist">📦 Pack_List</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/generate-invoice' %}active{% endif %}" href="/generate-invoice">🧾 Generate Invoice</a>
-                    </li>
-                </ul>
-                {% if session.get("user") %}
-                    <div class="d-flex align-items-center">
-                        <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
-                        <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
-                    </div>
-                {% endif %}
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item"><a class="nav-link {% if request.path == '/upload-form' %}active{% endif %}" href="/upload-form">📤 Upload</a></li>
+                <li class="nav-item"><a class="nav-link {% if request.path == '/search-form' %}active{% endif %}" href="/search-form">🔍 Search & Delete</a></li>
+                <li class="nav-item"><a class="nav-link {% if request.path == '/view-packlist' %}active{% endif %}" href="/view-packlist">📦 Pack_List</a></li>
+                <li class="nav-item"><a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a></li>
+                <li class="nav-item"><a class="nav-link {% if request.path == '/generate-invoice' %}active{% endif %}" href="/generate-invoice">🧾 Generate Invoice</a></li>
+            </ul>
+            {% if session.get("user") %}
+            <div class="d-flex align-items-center">
+                <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
+                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+            </div>
+            {% endif %}
             </div>
         </div>
     </nav>
@@ -653,27 +636,28 @@ def view_packlist():
             <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
                 <div class="container-fluid">
                     <a class="navbar-brand" href="/search-form">🧾 CPSApp</a>
-                    <div class="collapse navbar-collapse justify-content-between">
-                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                            <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
-                            <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
-                            <li class="nav-item"><a class="nav-link active" href="/view-packlist">📦 Pack_List</a></li>
-                            <li class="nav-item">
-                            <a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a>
-                            </li>
-                            <li class="nav-item">
-                            <a class="nav-link {% if request.path == '/generate-invoice' %}active{% endif %}" href="/generate-invoice">🧾 Generate Invoice</a>
-                            </li>
-                        </ul>
-                        {% if session.get("user") %}
-                            <div class="d-flex align-items-center">
-                                <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
-                                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
-                            </div>
-                        {% endif %}
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                    </button>
+                    
+                    <div class="collapse navbar-collapse" id="mainNavbar">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item"><a class="nav-link {% if request.path == '/upload-form' %}active{% endif %}" href="/upload-form">📤 Upload</a></li>
+                        <li class="nav-item"><a class="nav-link {% if request.path == '/search-form' %}active{% endif %}" href="/search-form">🔍 Search & Delete</a></li>
+                        <li class="nav-item"><a class="nav-link {% if request.path == '/view-packlist' %}active{% endif %}" href="/view-packlist">📦 Pack_List</a></li>
+                        <li class="nav-item"><a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a></li>
+                        <li class="nav-item"><a class="nav-link {% if request.path == '/generate-invoice' %}active{% endif %}" href="/generate-invoice">🧾 Generate Invoice</a></li>
+                    </ul>
+                    {% if session.get("user") %}
+                    <div class="d-flex align-items-center">
+                        <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
+                        <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                    </div>
+                    {% endif %}
                     </div>
                 </div>
             </nav>
+
 
             <h2 class="mb-4">📦 View Pack_List Sheet</h2>
 
@@ -771,24 +755,31 @@ def invoice():
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     </head>
     <body class="container py-5">
-        <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+       <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
             <div class="container-fluid">
                 <a class="navbar-brand" href="/search-form">🧾 CPSApp</a>
-                <div class="collapse navbar-collapse">
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                        <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/view-packlist">📦 Pack_List</a></li>
-                        <li class="nav-item"><a class="nav-link active" href="/invoice">🧾 Invoice</a></li>
-                    </ul>
-                    {% if session.get("user") %}
-                        <div class="d-flex align-items-center">
-                            <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
-                            <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
-                        </div>
-                    {% endif %}
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+                </button>
+                
+                <div class="collapse navbar-collapse" id="mainNavbar">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/upload-form' %}active{% endif %}" href="/upload-form">📤 Upload</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/search-form' %}active{% endif %}" href="/search-form">🔍 Search & Delete</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/view-packlist' %}active{% endif %}" href="/view-packlist">📦 Pack_List</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/generate-invoice' %}active{% endif %}" href="/generate-invoice">🧾 Generate Invoice</a></li>
+                </ul>
+                {% if session.get("user") %}
+                <div class="d-flex align-items-center">
+                    <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
+                    <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                </div>
+                {% endif %}
                 </div>
             </div>
+    </nav>
+
         </nav>
 
         <h2 class="mb-4">🧾 Create Invoice</h2>
@@ -1007,26 +998,31 @@ def generate_invoice():
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     </head>
     <body class="container py-5">
-        <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
             <div class="container-fluid">
                 <a class="navbar-brand" href="/search-form">🧾 CPSApp</a>
-                <div class="collapse navbar-collapse">
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                        <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/view-packlist">📦 Pack_List</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/invoice">🧾 Invoice</a></li>
-                        <li class="nav-item"><a class="nav-link active" href="/generate-invoice">🧾 Generate Invoice</a></li>
-                    </ul>
-                    {% if session.get("user") %}
-                    <div class="d-flex align-items-center">
-                        <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
-                        <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
-                    </div>
-                    {% endif %}
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+                </button>
+                
+                <div class="collapse navbar-collapse" id="mainNavbar">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/upload-form' %}active{% endif %}" href="/upload-form">📤 Upload</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/search-form' %}active{% endif %}" href="/search-form">🔍 Search & Delete</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/view-packlist' %}active{% endif %}" href="/view-packlist">📦 Pack_List</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/generate-invoice' %}active{% endif %}" href="/generate-invoice">🧾 Generate Invoice</a></li>
+                </ul>
+                {% if session.get("user") %}
+                <div class="d-flex align-items-center">
+                    <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
+                    <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                </div>
+                {% endif %}
                 </div>
             </div>
         </nav>
+
 
         <h2 class="mb-4">🧾 Generate Invoice</h2>
 
