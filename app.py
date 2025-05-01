@@ -951,19 +951,20 @@ def generate_invoice():
                 'invoice_date': datetime.utcnow().strftime('%Y-%m-%d'),
                 'invoice_number': f"INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
                 'payment_instructions': """
-                Please make payment via:<br>
-                1. Bank transfer to OCBC current account 588056739001<br>
-                2. PAYNOW to UEN number: 201013470W<br>
-                <strong>Cupid Apparel Pte Ltd</strong><br><br>
+                Please make payment via:\n
+                1. Bank transfer to OCBC current account 588056739001\n                2. PAYNOW to UEN number: 201013470W\n
+                Cupid Apparel Pte Ltd\n
                 ** Kindly indicate your FB name in the payment description, and do a screenshot of your payment
                 """
             }
+
     return render_template_string("""
     <html>
         <head>
-            <title>Generate Invoice</title>
+            <title>🧾 Generate Invoice</title>
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         </head>
         <body class="container py-5">
             <h2 class="mb-4">🧾 Generate Invoice</h2>
@@ -1037,6 +1038,36 @@ def generate_invoice():
                 <div class="alert alert-info">
                     {{ invoice_data.payment_instructions | safe }}
                 </div>
+
+                <button class="btn btn-outline-secondary" onclick="copyInvoice()">📋 Copy to Clipboard</button>
+                <textarea id="invoiceText" class="form-control mt-3" rows="10" readonly>
+Invoice No: {{ invoice_data.invoice_number }}
+Date: {{ invoice_data.invoice_date }}
+Customer: {{ invoice_data.customer }}
+Session: {{ invoice_data.file }}
+
+{% for item in invoice_data["items"] %}- {{ item.Description }}: ${{ "%.2f"|format(item.Price) }}
+{% endfor %}
+Subtotal: ${{ "%.2f"|format(invoice_data.subtotal) }}
+Courier Fee: ${{ "%.2f"|format(invoice_data.courier_fee) }}
+Total: ${{ "%.2f"|format(invoice_data.total) }}
+
+Payment Instructions:
+1. Bank transfer to OCBC current account 588056739001
+2. PAYNOW to UEN number: 201013470W
+Cupid Apparel Pte Ltd
+
+** Kindly indicate your FB name in the payment description, and do a screenshot of your payment
+                </textarea>
+                <script>
+                    function copyInvoice() {
+                        const textArea = document.getElementById("invoiceText");
+                        textArea.select();
+                        textArea.setSelectionRange(0, 99999);
+                        document.execCommand("copy");
+                        alert("Invoice copied to clipboard!");
+                    }
+                </script>
             {% endif %}
 
             {% if error %}
@@ -1045,6 +1076,7 @@ def generate_invoice():
         </body>
     </html>
     """, unique_files=unique_files, selected_file=selected_file, selected_customer=selected_customer, customer_list=customer_list, invoice_data=invoice_data, error=error)
+
 
 
 @app.route('/')
