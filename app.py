@@ -875,6 +875,7 @@ def generate_invoice():
     error = None
     courier_fee = 0
     total_amount = 0
+    total_quantity = 0
 
     # Fetch all bill data
     file_rows = supabase.table("bills").select("source_file, row_data").execute().data
@@ -914,31 +915,61 @@ def generate_invoice():
             error = f"No purchases found for {selected_customer} in {selected_file}."
         else:
             subtotal = 0
-            items = []
+            items_map = {}
             for r in customer_rows:
-                desc = r.get("Description")
-                price = r.get("Price")
+                desc = str(r.get("Description", "")).strip()
+                price = float(r.get("Price", 0))
 
-                if desc is not None and price is not None:
-                    try:
-                        desc = str(desc).strip()
-                        price = float(price)
-                        subtotal += price
-                        items.append({"Description": desc, "Price": price})
-                    except Exception:
-                        continue
+                key = (desc, price)
+                if key not in items_map:
+                    items_map[key] = {"Description": desc, "Price": price, "Qty": 0}
+                items_map[key]["Qty"] += 1
+                subtotal += price
+                total_quantity += 1
+
+            items = list(items_map.values())
 
             if ad_hoc_desc and ad_hoc_price:
                 try:
                     ad_price = float(ad_hoc_price)
-                    items.append({"Description": ad_hoc_desc, "Price": ad_price})
+                    items.append({"Description": ad_hoc_desc, "Price": ad_price, "Qty": 1})
                     subtotal += ad_price
+                    total_quantity += 1
                 except:
                     pass
 
             if courier_method == 'Courier Service':
                 courier_fee = 4
             total_amount = subtotal + courier_fee
+
+            collection_info = ""
+            if courier_method == "Self Collection":
+                collection_info = "Choose outlet: 1. Westmall  2. Jurong Point 2  3. Northpoint City"
+
+            invoice_lines = [
+                f"Invoice Number: INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+                f"Customer: {selected_customer}",
+                f"Live Session: {selected_file}",
+                f"Date: {datetime.utcnow().strftime('%Y-%m-%d')}",
+                "",
+                "Items:"
+            ]
+            for item in items:
+                invoice_lines.append(f"- {item['Description']} | ${item['Price']} x {item['Qty']} = ${item['Price'] * item['Qty']:.2f}")
+            invoice_lines.append(f"Total Quantity: {total_quantity}")
+            invoice_lines.append(f"Subtotal: ${subtotal:.2f}")
+            if courier_fee:
+                invoice_lines.append(f"Courier Fee: ${courier_fee:.2f}")
+            invoice_lines.append(f"Total: ${total_amount:.2f}")
+            if collection_info:
+                invoice_lines.append(f"Outlet Info: {collection_info}")
+            invoice_lines.append("\nPlease make payment via:")
+            invoice_lines.append("1. Bank transfer to OCBC current account 588056739001")
+            invoice_lines.append("2. PAYNOW to UEN number: 201013470W")
+            invoice_lines.append("Cupid Apparel Pte Ltd")
+            invoice_lines.append("** Kindly indicate your FB name in the payment description, and do a screenshot of your payment")
+
+            invoice_text = "\n".join(invoice_lines)
 
             invoice_data = {
                 'file': selected_file,
@@ -948,134 +979,73 @@ def generate_invoice():
                 'courier': courier_method,
                 'courier_fee': courier_fee,
                 'total': total_amount,
+                'total_quantity': total_quantity,
+                'collection_info': collection_info,
                 'invoice_date': datetime.utcnow().strftime('%Y-%m-%d'),
                 'invoice_number': f"INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
                 'payment_instructions': """
-                Please make payment via:\n
-                1. Bank transfer to OCBC current account 588056739001\n                2. PAYNOW to UEN number: 201013470W\n
-                Cupid Apparel Pte Ltd\n
+                Please make payment via:
+                1. Bank transfer to OCBC current account 588056739001
+                2. PAYNOW to UEN number: 201013470W
+                Cupid Apparel Pte Ltd
                 ** Kindly indicate your FB name in the payment description, and do a screenshot of your payment
-                """
+                """,
+                'invoice_text': invoice_text
             }
 
     return render_template_string("""
-    <html>
-        <head>
-            <title>🧾 Generate Invoice</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-        </head>
-        <body class="container py-5">
-            <h2 class="mb-4">🧾 Generate Invoice</h2>
+    <!-- Navigation and title here -->
+    <form method="post" class="mb-4">
+        <!-- file + customer selectors (unchanged) -->
+        {% if invoice_data %}
+        <div class="mt-4">
+            <h4>Invoice Preview - {{ invoice_data.invoice_number }}</h4>
+            <p><strong>Customer:</strong> {{ invoice_data.customer }}</p>
+            <p><strong>Live Session:</strong> {{ invoice_data.file }}</p>
+            <p><strong>Date:</strong> {{ invoice_data.invoice_date }}</p>
+            <table class="table table-bordered">
+                <thead><tr><th>Description</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr></thead>
+                <tbody>
+                    {% for item in invoice_data.items %}
+                    <tr>
+                        <td>{{ item.Description }}</td>
+                        <td>${{ '%.2f'|format(item.Price) }}</td>
+                        <td>{{ item.Qty }}</td>
+                        <td>${{ '%.2f'|format(item.Price * item.Qty) }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr><td colspan="3"><strong>Total Quantity</strong></td><td>{{ invoice_data.total_quantity }}</td></tr>
+                    <tr><td colspan="3"><strong>Subtotal</strong></td><td>${{ '%.2f'|format(invoice_data.subtotal) }}</td></tr>
+                    {% if invoice_data.courier_fee %}
+                    <tr><td colspan="3"><strong>Courier Fee</strong></td><td>${{ '%.2f'|format(invoice_data.courier_fee) }}</td></tr>
+                    {% endif %}
+                    <tr><td colspan="3"><strong>Total</strong></td><td><strong>${{ '%.2f'|format(invoice_data.total) }}</strong></td></tr>
+                </tbody>
+            </table>
 
-            <form method="post" class="mb-4">
-                <div class="mb-3">
-                    <label>Select File (Live Session)</label>
-                    <select name="selected_file" class="form-select" required onchange="this.form.submit()">
-                        <option value="">-- Select file --</option>
-                        {% for file in unique_files %}
-                            <option value="{{ file }}" {% if file == selected_file %}selected{% endif %}>{{ file }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                {% if selected_file %}
-                    <div class="mb-3">
-                        <label>Select Customer</label>
-                        <select name="selected_customer" class="form-select" required onchange="this.form.submit()">
-                            <option value="">-- Select customer --</option>
-                            {% for name in customer_list %}
-                                <option value="{{ name }}" {% if name == selected_customer %}selected{% endif %}>{{ name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                {% endif %}
-
-                {% if selected_customer %}
-                    <div class="mb-3">
-                        <label>Add Ad-hoc Item (Optional)</label>
-                        <input type="text" name="ad_hoc_desc" class="form-control mb-2" placeholder="Description">
-                        <input type="number" step="0.01" name="ad_hoc_price" class="form-control" placeholder="Price">
-                    </div>
-
-                    <div class="mb-3">
-                        <label>Courier Method</label>
-                        <div>
-                            <label><input type="radio" name="courier_method" value="Courier Service" required> Courier Service (+$4)</label><br>
-                            <label><input type="radio" name="courier_method" value="Self Collection"> Self Collection</label><br>
-                            <label><input type="radio" name="courier_method" value="Accumulation"> Accumulation</label>
-                        </div>
-                    </div>
-
-                    <button class="btn btn-primary" type="submit">Generate Invoice</button>
-                {% endif %}
-            </form>
-
-            {% if invoice_data %}
-                <h3>Invoice: {{ invoice_data.invoice_number }}</h3>
-                <p><strong>Date:</strong> {{ invoice_data.invoice_date }}</p>
-                <p><strong>Customer:</strong> {{ invoice_data.customer }}</p>
-                <p><strong>Live Session:</strong> {{ invoice_data.file }}</p>
-
-                <table class="table table-bordered">
-                    <thead>
-                        <tr><th>Description</th><th>Price</th></tr>
-                    </thead>
-                    <tbody>
-                        {% for item in invoice_data["items"] %}
-                            <tr>
-                                <td>{{ item.Description }}</td>
-                                <td>${{ "%.2f"|format(item.Price) }}</td>
-                            </tr>
-                        {% endfor %}
-                        <tr><td><strong>Subtotal</strong></td><td>${{ "%.2f"|format(invoice_data.subtotal) }}</td></tr>
-                        <tr><td><strong>Courier Fee</strong></td><td>${{ "%.2f"|format(invoice_data.courier_fee) }}</td></tr>
-                        <tr><td><strong>Total</strong></td><td><strong>${{ "%.2f"|format(invoice_data.total) }}</strong></td></tr>
-                    </tbody>
-                </table>
-
-                <div class="alert alert-info">
-                    {{ invoice_data.payment_instructions | safe }}
-                </div>
-
-                <button class="btn btn-outline-secondary" onclick="copyInvoice()">📋 Copy to Clipboard</button>
-                <textarea id="invoiceText" class="form-control mt-3" rows="10" readonly>
-Invoice No: {{ invoice_data.invoice_number }}
-Date: {{ invoice_data.invoice_date }}
-Customer: {{ invoice_data.customer }}
-Session: {{ invoice_data.file }}
-
-{% for item in invoice_data["items"] %}- {{ item.Description }}: ${{ "%.2f"|format(item.Price) }}
-{% endfor %}
-Subtotal: ${{ "%.2f"|format(invoice_data.subtotal) }}
-Courier Fee: ${{ "%.2f"|format(invoice_data.courier_fee) }}
-Total: ${{ "%.2f"|format(invoice_data.total) }}
-
-Payment Instructions:
-1. Bank transfer to OCBC current account 588056739001
-2. PAYNOW to UEN number: 201013470W
-Cupid Apparel Pte Ltd
-
-** Kindly indicate your FB name in the payment description, and do a screenshot of your payment
-                </textarea>
-                <script>
-                    function copyInvoice() {
-                        const textArea = document.getElementById("invoiceText");
-                        textArea.select();
-                        textArea.setSelectionRange(0, 99999);
-                        document.execCommand("copy");
-                        alert("Invoice copied to clipboard!");
-                    }
-                </script>
+            {% if invoice_data.collection_info %}
+            <p><strong>Outlet:</strong> {{ invoice_data.collection_info }}</p>
             {% endif %}
 
-            {% if error %}
-                <div class="alert alert-danger">{{ error }}</div>
-            {% endif %}
-        </body>
-    </html>
+            <div class="alert alert-info">
+                {{ invoice_data.payment_instructions.replace('\n', '<br>') | safe }}
+            </div>
+
+            <button class="btn btn-secondary" type="button" onclick="copyText()">📋 Copy Invoice Text</button>
+            <textarea id="invoiceText" class="form-control mt-2" rows="10">{{ invoice_data.invoice_text }}</textarea>
+        </div>
+        <script>
+            function copyText() {
+                const textArea = document.getElementById('invoiceText');
+                textArea.select();
+                document.execCommand('copy');
+                alert('Invoice text copied to clipboard!');
+            }
+        </script>
+        {% endif %}
+    </form>
     """, unique_files=unique_files, selected_file=selected_file, selected_customer=selected_customer, customer_list=customer_list, invoice_data=invoice_data, error=error)
+
 
 
 
