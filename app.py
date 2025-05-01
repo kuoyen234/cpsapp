@@ -996,6 +996,8 @@ def generate_invoice():
     <head>
         <title>Generate Invoice</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNa6sK7UABoWwD3VCHRW+YfG1PtRW6AZDbRPddw9Uc/ELVd5bybkQy8Ddl1YGoLDuRPK7H8pH0VeNCTK7M0a1w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
     </head>
     <body class="container py-5">
         <<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
@@ -1113,6 +1115,8 @@ def generate_invoice():
             </div>
 
             <button class="btn btn-secondary" type="button" onclick="copyText()">📋 Copy Invoice Text</button>
+            <button class="btn btn-success mt-2" onclick="copyInvoiceAsImage()">🖼️ Copy as Image</button>
+
             <textarea id="invoiceText" class="form-control mt-2" rows="12">{{ invoice_data.invoice_text }}</textarea>
         </div>
         <script>
@@ -1123,6 +1127,24 @@ def generate_invoice():
                 alert('Invoice text copied to clipboard!');
             }
         </script>
+        <script>
+            function copyInvoiceAsImage() {
+                const target = document.getElementById("invoiceCapture");
+                html2canvas(target).then(canvas => {
+                    canvas.toBlob(blob => {
+                        const item = new ClipboardItem({ "image/png": blob });
+                        navigator.clipboard.write([item]).then(() => {
+                            alert("📸 Invoice copied as image to clipboard!");
+                        }, err => {
+                            alert("❌ Copy to clipboard failed.");
+                            console.error(err);
+                        });
+                    });
+                });
+            }
+        </script>
+
+                                  
         {% endif %}
     </body>
     </html>
