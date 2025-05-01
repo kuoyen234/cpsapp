@@ -1007,6 +1007,27 @@ def generate_invoice():
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     </head>
     <body class="container py-5">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/search-form">🧾 CPSApp</a>
+                <div class="collapse navbar-collapse">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/view-packlist">📦 Pack_List</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/invoice">🧾 Invoice</a></li>
+                        <li class="nav-item"><a class="nav-link active" href="/generate-invoice">🧾 Generate Invoice</a></li>
+                    </ul>
+                    {% if session.get("user") %}
+                    <div class="d-flex align-items-center">
+                        <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
+                        <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </nav>
+
         <h2 class="mb-4">🧾 Generate Invoice</h2>
 
         <form method="post">
