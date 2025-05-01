@@ -906,7 +906,7 @@ def generate_invoice():
     if selected_file and request.form.get("selected_customer"):
         selected_customer = request.form.get("selected_customer")
         courier_method = request.form.get("courier_method")
-        selected_outlet = request.form.get("collection_outlet")
+        outlet_option = request.form.get("outlet_option")
         ad_hoc_desc = request.form.get("ad_hoc_desc")
         ad_hoc_price = request.form.get("ad_hoc_price")
 
@@ -939,17 +939,17 @@ def generate_invoice():
                 except:
                     pass
 
+            courier_label = courier_method
             if courier_method == 'Courier Service':
                 courier_fee = 4
-                courier_option = "Courier Service"
-            elif courier_method == 'Self Collection':
-                courier_fee = 0
-                courier_option = f"Self Collection – {selected_outlet}" if selected_outlet else "Self Collection"
-            else:
-                courier_fee = 0
-                courier_option = "Accumulation"
+            elif courier_method == "Self Collection" and outlet_option:
+                courier_label = f"Self Collection - {outlet_option}"
 
             total_amount = subtotal + courier_fee
+
+            collection_info = ""
+            if courier_method == "Self Collection":
+                collection_info = f"Choose outlet: {outlet_option}"
 
             invoice_lines = [
                 f"Invoice Number: INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
@@ -963,10 +963,11 @@ def generate_invoice():
                 invoice_lines.append(f"- {item['Description']} | ${item['Price']} x {item['Qty']} = ${item['Price'] * item['Qty']:.2f}")
             invoice_lines.append(f"Total Quantity: {total_quantity}")
             invoice_lines.append(f"Subtotal: ${subtotal:.2f}")
-            invoice_lines.append(f"Courier Option: {courier_option}")
             if courier_fee:
                 invoice_lines.append(f"Courier Fee: ${courier_fee:.2f}")
             invoice_lines.append(f"Total: ${total_amount:.2f}")
+            if collection_info:
+                invoice_lines.append(f"Outlet Info: {collection_info}")
             invoice_lines.append("\nPlease make payment via:")
             invoice_lines.append("1. Bank transfer to OCBC current account 588056739001")
             invoice_lines.append("2. PAYNOW to UEN number: 201013470W")
@@ -980,10 +981,11 @@ def generate_invoice():
                 'customer': selected_customer,
                 'items': items,
                 'subtotal': subtotal,
-                'courier': courier_option,
+                'courier': courier_label,
                 'courier_fee': courier_fee,
                 'total': total_amount,
                 'total_quantity': total_quantity,
+                'collection_info': collection_info,
                 'invoice_date': datetime.utcnow().strftime('%Y-%m-%d'),
                 'invoice_number': f"INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
                 'payment_instructions': """
@@ -996,8 +998,105 @@ def generate_invoice():
                 'invoice_text': invoice_text
             }
 
-    return render_template_string(...)
+    return render_template_string("""
+    <html>
+    <head>
+        <title>Generate Invoice</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body class="container py-5">
+        <h2 class="mb-4">🧾 Generate Invoice</h2>
 
+        <form method="post">
+            <div class="mb-3">
+                <label>Select File (Live Session)</label>
+                <select name="selected_file" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Select file --</option>
+                    {% for f in unique_files %}
+                        <option value="{{ f }}" {% if f == selected_file %}selected{% endif %}>{{ f }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {% if selected_file %}
+            <div class="mb-3">
+                <label>Select Customer</label>
+                <select name="selected_customer" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Select customer --</option>
+                    {% for c in customer_list %}
+                        <option value="{{ c }}" {% if c == selected_customer %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            {% if selected_customer %}
+            <div class="mb-3">
+                <label>Courier Method</label>
+                <div>
+                    <label><input type="radio" name="courier_method" value="Courier Service" required> Courier Service (+$4)</label><br>
+                    <label><input type="radio" name="courier_method" value="Self Collection"> Self Collection (Free)</label><br>
+                    <label><input type="radio" name="courier_method" value="Accumulation"> Accumulation (Free)</label>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label>Ad-hoc Item (Optional)</label>
+                <input type="text" name="ad_hoc_desc" class="form-control mb-2" placeholder="Description">
+                <input type="number" step="0.01" name="ad_hoc_price" class="form-control" placeholder="Price">
+            </div>
+            <button class="btn btn-primary" type="submit">Preview Invoice</button>
+            {% endif %}
+        </form>
+
+        {% if invoice_data %}
+        <div class="mt-4">
+            <h4>Invoice Preview - {{ invoice_data.invoice_number }}</h4>
+            <p><strong>Customer:</strong> {{ invoice_data.customer }}</p>
+            <p><strong>Live Session:</strong> {{ invoice_data.file }}</p>
+            <p><strong>Date:</strong> {{ invoice_data.invoice_date }}</p>
+            <table class="table table-bordered">
+                <thead><tr><th>Description</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr></thead>
+                <tbody>
+                    {% for item in invoice_data["items"] %}
+                    <tr>ß
+                        <td>{{ item.Description }}</td>
+                        <td>${{ '%.2f'|format(item.Price) }}</td>
+                        <td>{{ item.Qty }}</td>
+                        <td>${{ '%.2f'|format(item.Price * item.Qty) }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr><td colspan="3"><strong>Total Quantity</strong></td><td>{{ invoice_data.total_quantity }}</td></tr>
+                    <tr><td colspan="3"><strong>Subtotal</strong></td><td>${{ '%.2f'|format(invoice_data.subtotal) }}</td></tr>
+                    {% if invoice_data.courier_fee %}
+                    <tr><td colspan="3"><strong>Courier Fee</strong></td><td>${{ '%.2f'|format(invoice_data.courier_fee) }}</td></tr>
+                    {% endif %}
+                    <tr><td colspan="3"><strong>Total</strong></td><td><strong>${{ '%.2f'|format(invoice_data.total) }}</strong></td></tr>
+                </tbody>
+            </table>
+
+            {% if invoice_data.collection_info %}
+            <p><strong>Outlet:</strong> {{ invoice_data.collection_info }}</p>
+            {% endif %}
+
+            <div class="alert alert-info">
+                {{ invoice_data.payment_instructions.replace('\n', '<br>') | safe }}
+            </div>
+
+            <button class="btn btn-secondary" type="button" onclick="copyText()">📋 Copy Invoice Text</button>
+            <textarea id="invoiceText" class="form-control mt-2" rows="10">{{ invoice_data.invoice_text }}</textarea>
+        </div>
+        <script>
+            function copyText() {
+                const textArea = document.getElementById('invoiceText');
+                textArea.select();
+                document.execCommand('copy');
+                alert('Invoice text copied to clipboard!');
+            }
+        </script>
+        {% endif %}
+    </body>
+    </html>
+    """, unique_files=unique_files, selected_file=selected_file, selected_customer=selected_customer, customer_list=customer_list, invoice_data=invoice_data, error=error)
 
 
 @app.route('/')
