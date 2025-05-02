@@ -942,8 +942,9 @@ def generate_invoice():
                 collection_info = f"{outlet_option}"
 
             invoice_lines = [
-                "Hi"f": {selected_customer}",
+                "Hi"f" {selected_customer},",
                 "Thank you for your support."
+                "",
                 f"Invoice Number: INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
                 
                 f"Live Session: {selected_file}",
