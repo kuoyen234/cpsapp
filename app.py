@@ -992,28 +992,28 @@ def generate_invoice():
             }
 
     return render_template_string("""
-    <html>
-    <head>
-        <title>Generate Invoice</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNa6sK7UABoWwD3VCHRW+YfG1PtRW6AZDbRPddw9Uc/ELVd5bybkQy8Ddl1YGoLDuRPK7H8pH0VeNCTK7M0a1w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<html>
+<head>
+    <title>Generate Invoice</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+<body class="container py-5">
 
-    </head>
-    <body class="container py-5">
-        <<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-            <div class="container-fluid">
-                <a class="navbar-brand" href="/search-form">🧾 CPSApp</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/search-form">🧾 CPSApp</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
                 <span class="navbar-toggler-icon"></span>
-                </button>
-                
-                <div class="collapse navbar-collapse" id="mainNavbar">
+            </button>
+            <div class="collapse navbar-collapse" id="mainNavbar">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link {% if request.path == '/upload-form' %}active{% endif %}" href="/upload-form">📤 Upload</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.path == '/search-form' %}active{% endif %}" href="/search-form">🔍 Search & Delete</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.path == '/view-packlist' %}active{% endif %}" href="/view-packlist">📦 Pack_List</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.path == '/invoice' %}active{% endif %}" href="/invoice">🧾 Invoice</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.path == '/generate-invoice' %}active{% endif %}" href="/generate-invoice">🧾 Generate Invoice</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/view-packlist">📦 Pack_List</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="/generate-invoice">🧾 Generate Invoice</a></li>
                 </ul>
                 {% if session.get("user") %}
                 <div class="d-flex align-items-center">
@@ -1021,133 +1021,132 @@ def generate_invoice():
                     <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
                 </div>
                 {% endif %}
-                </div>
             </div>
-        </nav>
-
-
-        <h2 class="mb-4">🧾 Generate Invoice</h2>
-
-        <form method="post">
-            <div class="mb-3">
-                <label>Select File (Live Session)</label>
-                <select name="selected_file" class="form-select" onchange="this.form.submit()">
-                    <option value="">-- Select file --</option>
-                    {% for f in unique_files %}
-                        <option value="{{ f }}" {% if f == selected_file %}selected{% endif %}>{{ f }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            {% if selected_file %}
-            <div class="mb-3">
-                <label>Select Customer</label>
-                <select name="selected_customer" class="form-select" onchange="this.form.submit()">
-                    <option value="">-- Select customer --</option>
-                    {% for c in customer_list %}
-                        <option value="{{ c }}" {% if c == selected_customer %}selected{% endif %}>{{ c }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
-
-            {% if selected_customer %}
-            <div class="mb-3">
-                <label>Courier Method</label>
-                <div>
-                    <label><input type="radio" name="courier_method" value="Courier Service" required> Courier Service (+$4)</label><br>
-                    <label><input type="radio" name="courier_method" value="Self Collection"> Self Collection (Free)</label>
-                    <div class="mt-2">
-                        <select name="outlet_option" class="form-select">
-                            <option value="">-- Select Outlet --</option>
-                            <option value="Westmall">Westmall</option>
-                            <option value="Jurong Point 2">Jurong Point 2</option>
-                            <option value="Northpoint City">Northpoint City</option>
-                        </select>
-                    </div>
-                    <label><input type="radio" name="courier_method" value="Accumulation"> Accumulation (Free)</label>
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <label>Ad-hoc Item (Optional)</label>
-                <input type="text" name="ad_hoc_desc" class="form-control mb-2" placeholder="Description">
-                <input type="number" step="0.01" name="ad_hoc_price" class="form-control mb-2" placeholder="Price">
-                <input type="number" name="ad_hoc_qty" class="form-control" placeholder="Quantity" value="1" min="1">
-            </div>
-
-            <button class="btn btn-primary" type="submit">Preview Invoice</button>
-            {% endif %}
-        </form>
-
-        {% if invoice_data %}
-        <div id="invoiceCapture" class="mt-4">
-
-            <h4>Invoice Preview - {{ invoice_data.invoice_number }}</h4>
-            <p><strong>Customer:</strong> {{ invoice_data.customer }}</p>
-            <p><strong>Live Session:</strong> {{ invoice_data.file }}</p>
-            <p><strong>Date:</strong> {{ invoice_data.invoice_date }}</p>
-            <table class="table table-bordered">
-                <thead><tr><th>Description</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr></thead>
-                <tbody>
-                    {% for item in invoice_data["items"] %}
-                    <tr>
-                        <td>{{ item.Description }}</td>
-                        <td>${{ '%.2f'|format(item.Price) }}</td>
-                        <td>{{ item.Qty }}</td>
-                        <td>${{ '%.2f'|format(item.Price * item.Qty) }}</td>
-                    </tr>
-                    {% endfor %}
-                    <tr><td colspan="3"><strong>Total Quantity</strong></td><td>{{ invoice_data.total_quantity }}</td></tr>
-                    <tr><td colspan="3"><strong>Subtotal</strong></td><td>${{ '%.2f'|format(invoice_data.subtotal) }}</td></tr>
-                    {% if invoice_data.courier_fee %}
-                    <tr><td colspan="3"><strong>Courier Fee</strong></td><td>${{ '%.2f'|format(invoice_data.courier_fee) }}</td></tr>
-                    {% endif %}
-                    <tr><td colspan="3"><strong>Total</strong></td><td><strong>${{ '%.2f'|format(invoice_data.total) }}</strong></td></tr>
-                </tbody>
-            </table>
-
-            {% if invoice_data.collection_info %}
-            <p><strong>Self Collection Location:</strong> {{ invoice_data.collection_info }}</p>
-            {% endif %}
-
-            <div class="alert alert-info">
-                {{ invoice_data.payment_instructions.replace('\n', '<br>') | safe }}
-            </div>
-
-            <button class="btn btn-secondary" type="button" onclick="copyText()">📋 Copy Invoice Text</button>
-            <button class="btn btn-success mt-2" onclick="copyInvoiceAsImage()">🖼️ Copy as Image</button>
-            <textarea id="invoiceText" class="form-control mt-2" rows="12">{{ invoice_data.invoice_text }}</textarea>
         </div>
-        <script>
-            function copyText() {
-                const textArea = document.getElementById('invoiceText');
-                textArea.select();
-                document.execCommand('copy');
-                alert('Invoice text copied to clipboard!');
-            }
-        </script>
-        <script>
-            function copyInvoiceAsImage() {
-                const target = document.getElementById("invoiceCapture");
-                html2canvas(target).then(canvas => {
-                    canvas.toBlob(blob => {
-                        const item = new ClipboardItem({ "image/png": blob });
-                        navigator.clipboard.write([item]).then(() => {
-                            alert("📸 Invoice copied as image to clipboard!");
-                        }, err => {
-                            alert("❌ Copy to clipboard failed.");
-                            console.error(err);
-                        });
+    </nav>
+
+    <h2 class="mb-4">🧾 Generate Invoice</h2>
+
+    <form method="post">
+        <div class="mb-3">
+            <label>Select File (Live Session)</label>
+            <select name="selected_file" class="form-select" onchange="this.form.submit()">
+                <option value="">-- Select file --</option>
+                {% for f in unique_files %}
+                    <option value="{{ f }}" {% if f == selected_file %}selected{% endif %}>{{ f }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        {% if selected_file %}
+        <div class="mb-3">
+            <label>Select Customer</label>
+            <select name="selected_customer" class="form-select" onchange="this.form.submit()">
+                <option value="">-- Select customer --</option>
+                {% for c in customer_list %}
+                    <option value="{{ c }}" {% if c == selected_customer %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        {% if selected_customer %}
+        <div class="mb-3">
+            <label>Courier Method</label>
+            <div>
+                <label><input type="radio" name="courier_method" value="Courier Service" required> Courier Service (+$4)</label><br>
+                <label><input type="radio" name="courier_method" value="Self Collection"> Self Collection (Free)</label>
+                <div class="mt-2">
+                    <select name="outlet_option" class="form-select">
+                        <option value="">-- Select Outlet --</option>
+                        <option value="Westmall">Westmall</option>
+                        <option value="Jurong Point 2">Jurong Point 2</option>
+                        <option value="Northpoint City">Northpoint City</option>
+                    </select>
+                </div>
+                <label><input type="radio" name="courier_method" value="Accumulation"> Accumulation (Free)</label>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label>Ad-hoc Item (Optional)</label>
+            <input type="text" name="ad_hoc_desc" class="form-control mb-2" placeholder="Description">
+            <input type="number" step="0.01" name="ad_hoc_price" class="form-control mb-2" placeholder="Price">
+            <input type="number" name="ad_hoc_qty" class="form-control" placeholder="Quantity" value="1" min="1">
+        </div>
+
+        <button class="btn btn-primary" type="submit">Preview Invoice</button>
+        {% endif %}
+    </form>
+
+    {% if invoice_data %}
+    <div class="mt-5" id="invoiceCapture">
+        <h4>Invoice Preview - {{ invoice_data.invoice_number }}</h4>
+        <p><strong>Customer:</strong> {{ invoice_data.customer }}</p>
+        <p><strong>Live Session:</strong> {{ invoice_data.file }}</p>
+        <p><strong>Date:</strong> {{ invoice_data.invoice_date }}</p>
+        <table class="table table-bordered">
+            <thead><tr><th>Description</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr></thead>
+            <tbody>
+                {% for item in invoice_data.items %}
+                <tr>
+                    <td>{{ item.Description }}</td>
+                    <td>${{ '%.2f'|format(item.Price) }}</td>
+                    <td>{{ item.Qty }}</td>
+                    <td>${{ '%.2f'|format(item.Price * item.Qty) }}</td>
+                </tr>
+                {% endfor %}
+                <tr><td colspan="3"><strong>Total Quantity</strong></td><td>{{ invoice_data.total_quantity }}</td></tr>
+                <tr><td colspan="3"><strong>Subtotal</strong></td><td>${{ '%.2f'|format(invoice_data.subtotal) }}</td></tr>
+                {% if invoice_data.courier_fee %}
+                <tr><td colspan="3"><strong>Courier Fee</strong></td><td>${{ '%.2f'|format(invoice_data.courier_fee) }}</td></tr>
+                {% endif %}
+                <tr><td colspan="3"><strong>Total</strong></td><td><strong>${{ '%.2f'|format(invoice_data.total) }}</strong></td></tr>
+            </tbody>
+        </table>
+
+        {% if invoice_data.collection_info %}
+        <p><strong>Self Collection Location:</strong> {{ invoice_data.collection_info }}</p>
+        {% endif %}
+
+        <div class="alert alert-info">
+            {{ invoice_data.payment_instructions.replace('\n', '<br>') | safe }}
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <button class="btn btn-secondary" type="button" onclick="copyText()">📋 Copy Text</button>
+        <button class="btn btn-success ms-2" type="button" onclick="copyInvoiceAsImage()">🖼️ Copy as Image</button>
+        <textarea id="invoiceText" class="form-control mt-3" rows="10">{{ invoice_data.invoice_text }}</textarea>
+    </div>
+
+    <script>
+        function copyText() {
+            const textArea = document.getElementById('invoiceText');
+            textArea.select();
+            document.execCommand('copy');
+            alert('Invoice text copied to clipboard!');
+        }
+
+        function copyInvoiceAsImage() {
+            const target = document.getElementById("invoiceCapture");
+            html2canvas(target).then(canvas => {
+                canvas.toBlob(blob => {
+                    const item = new ClipboardItem({ "image/png": blob });
+                    navigator.clipboard.write([item]).then(() => {
+                        alert("📸 Invoice copied as image to clipboard!");
+                    }).catch(err => {
+                        alert("❌ Copy to clipboard failed. Try a secure browser like Chrome.");
+                        console.error(err);
                     });
                 });
-            }
-        </script>
+            });
+        }
+    </script>
+    {% endif %}
+</body>
+</html>
 
-                                  
-        {% endif %}
-    </body>
-    </html>
     """, unique_files=unique_files, selected_file=selected_file, selected_customer=selected_customer, customer_list=customer_list, invoice_data=invoice_data, error=error)
 
 
