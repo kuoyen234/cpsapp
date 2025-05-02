@@ -942,8 +942,9 @@ def generate_invoice():
                 collection_info = f"{outlet_option}"
 
             invoice_lines = [
+                "Hi"f"Customer: {selected_customer}",
                 f"Invoice Number: INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
-                f"Customer: {selected_customer}",
+                
                 f"Live Session: {selected_file}",
                 f"Date: {datetime.utcnow().strftime('%Y-%m-%d')}",
                 "",
@@ -1080,7 +1081,7 @@ def generate_invoice():
     <div class="mt-5" id="invoiceCapture">
         <h4>Invoice Preview - {{ invoice_data.invoice_number }}</h4>
         <p><strong>Hi:</strong> {{ invoice_data.customer }}</p>
-        <p><strong>Thank you for your support.:</strong> </p>
+        <p><strong>Thank you for your support.</strong> </p>
         <p><strong>Live Session:</strong> {{ invoice_data.file }}</p>
         <p><strong>Date:</strong> {{ invoice_data.invoice_date }}</p>
         <table class="table table-bordered">
