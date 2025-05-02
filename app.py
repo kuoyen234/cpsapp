@@ -1081,7 +1081,8 @@ def generate_invoice():
         </form>
 
         {% if invoice_data %}
-        <div class="mt-4">
+        <div id="invoiceCapture" class="mt-4">
+
             <h4>Invoice Preview - {{ invoice_data.invoice_number }}</h4>
             <p><strong>Customer:</strong> {{ invoice_data.customer }}</p>
             <p><strong>Live Session:</strong> {{ invoice_data.file }}</p>
@@ -1116,7 +1117,6 @@ def generate_invoice():
 
             <button class="btn btn-secondary" type="button" onclick="copyText()">📋 Copy Invoice Text</button>
             <button class="btn btn-success mt-2" onclick="copyInvoiceAsImage()">🖼️ Copy as Image</button>
-
             <textarea id="invoiceText" class="form-control mt-2" rows="12">{{ invoice_data.invoice_text }}</textarea>
         </div>
         <script>
