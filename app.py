@@ -12,7 +12,7 @@ from collections import defaultdict
 from flask import session, redirect, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
-
+from IPython.display import display, HTML
 
 
 
@@ -1082,7 +1082,8 @@ def generate_invoice():
     {% if invoice_data %}
     <div class="mt-5" id="invoiceCapture">
         <h4>Invoice Preview - {{ invoice_data.invoice_number }}</h4>
-        <p><strong>Customer:</strong> {{ invoice_data.customer }}</p>
+        <p><strong>Hi:</strong> {{ invoice_data.customer }}</p>
+        <p><strong>Thank you for your support.:</strong> </p>
         <p><strong>Live Session:</strong> {{ invoice_data.file }}</p>
         <p><strong>Date:</strong> {{ invoice_data.invoice_date }}</p>
         <table class="table table-bordered">
