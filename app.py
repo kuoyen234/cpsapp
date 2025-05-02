@@ -12,9 +12,6 @@ from collections import defaultdict
 from flask import session, redirect, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
-from IPython.display import display, HTML
-
-
 
 
 # === Supabase Config ===
