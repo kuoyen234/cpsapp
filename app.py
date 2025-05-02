@@ -1088,7 +1088,7 @@ def generate_invoice():
         <table class="table table-bordered">
             <thead><tr><th>Description</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr></thead>
             <tbody>
-                {% for item in invoice_data.items %}
+                {% for item in invoice_data["items"] %}
                 <tr>
                     <td>{{ item.Description }}</td>
                     <td>${{ '%.2f'|format(item.Price) }}</td>
