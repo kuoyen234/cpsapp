@@ -858,13 +858,13 @@ def invoice():
 @app.route('/generate-invoice', methods=['GET', 'POST'])
 @login_required
 def generate_invoice():
-    # — initialize —
-    selected_file     = None
-    selected_customer = None
+    # initialize
+    selected_file     = ""
+    selected_customer = ""
     invoice_data      = None
     error             = None
 
-    # 1) load & group all bill data by file → customer
+    # 1) Load & group Excel “Bill” data by file → customer
     file_rows = supabase.table("bills")\
                        .select("source_file, row_data")\
                        .execute().data
@@ -876,7 +876,7 @@ def generate_invoice():
             file_to_rows.setdefault(f, []).append(d)
     unique_files = sorted(file_to_rows.keys(), reverse=True)
 
-    # 2) build customer list for the selected file
+    # 2) Build customer list for the selected file
     selected_file    = request.form.get("selected_file", "")
     all_rows         = file_to_rows.get(selected_file, []) if selected_file else []
     customer_to_rows = {}
@@ -886,7 +886,7 @@ def generate_invoice():
             customer_to_rows.setdefault(cust, []).append(d)
     customer_list = sorted(customer_to_rows.keys())
 
-    # 3) pull products table for ad-hoc lines
+    # 3) Pull your products table for ad-hoc items
     raw_prods = supabase.table("products")\
                         .select("id,description,code,price")\
                         .order("description")\
@@ -898,13 +898,13 @@ def generate_invoice():
         "price":       float(p.get("price") or 0)
     } for p in raw_prods]
 
-    # 4) if form submitted with a customer, build invoice
+    # 4) If form submitted with a customer → build invoice
     if selected_file and request.form.get("selected_customer"):
         selected_customer = request.form.get("selected_customer")
         courier_method    = request.form.get("courier_method", "")
         outlet_option     = request.form.get("outlet_option", "")
 
-        # 4a) existing purchases from Excel “Bill” tab
+        # 4a) Aggregate existing purchases
         items_map = {}
         subtotal  = 0
         total_qty = 0
@@ -919,7 +919,7 @@ def generate_invoice():
             total_qty += 1
         items = list(items_map.values())
 
-        # 4b) ad-hoc multi-row items
+        # 4b) Add multi-row ad-hoc items
         ids    = request.form.getlist("item_id")
         descs  = request.form.getlist("item_desc")
         qtys   = request.form.getlist("item_qty")
@@ -940,19 +940,18 @@ def generate_invoice():
             subtotal  += price * qty
             total_qty += qty
 
-        # 4c) courier logic
-        courier_label = courier_method
+        # 4c) Courier logic
         courier_fee   = 0
+        courier_label = courier_method
         if courier_method == "Courier Service":
             courier_fee = 4
         elif courier_method == "Self Collection" and outlet_option:
             courier_label = f"Self Collection - {outlet_option}"
         elif courier_method == "Accumulation":
-            courier_label = "Park"
-
+            courier_label = "Accumulation"
         total_amount = subtotal + courier_fee
 
-        # 4d) compose invoice text & data
+        # 4d) Build invoice text & data
         invoice_number = f"INV-{datetime.utcnow():%Y%m%d%H%M%S}"
         lines = [
             f"Hi {selected_customer},",
@@ -962,19 +961,20 @@ def generate_invoice():
             f"Live Session: {selected_file}",
             f"Date: {datetime.utcnow():%Y-%m-%d}",
             "",
-            "Items:"
+            "Items:",
         ]
         for it in items:
-            lines.append(f"- {it['Description']} | ${it['Price']} x {it['Qty']} = ${it['Price']*it['Qty']:.2f}")
+            lines.append(
+                f"- {it['Description']} | ${it['Price']} x {it['Qty']} = ${it['Price']*it['Qty']:.2f}"
+            )
         lines += [
             f"Total Quantity: {total_qty}",
-            f"Subtotal: ${subtotal:.2f}"
+            f"Subtotal: ${subtotal:.2f}",
         ]
-        if courier_fee:
-            lines.append(f"Courier Fee: ${courier_fee:.2f}")
+        # Courier Fee line (in text)
+        lines.append(f"Courier Fee: ${courier_fee:.2f}")
         lines.append(f"Total: ${total_amount:.2f}")
-        if courier_label.startswith("Self Collection"):
-            lines.append(f"Self Collection Location: {outlet_option}")
+        lines.append(f"Courier Method: {courier_label}")
         lines += [
             "",
             "Please make payment via:",
@@ -986,22 +986,22 @@ def generate_invoice():
         invoice_text = "\n".join(lines)
 
         invoice_data = {
-            'file':                 selected_file,
+            'invoice_number':       invoice_number,
             'customer':             selected_customer,
+            'file':                 selected_file,
+            'invoice_date':         datetime.utcnow().strftime("%Y-%m-%d"),
             'items':                items,
+            'total_quantity':       total_qty,
             'subtotal':             subtotal,
-            'courier':              courier_label,
             'courier_fee':          courier_fee,
             'total':                total_amount,
-            'total_quantity':       total_qty,
+            'courier':              courier_label,
             'collection_info':      outlet_option if courier_label.startswith("Self Collection") else "",
-            'invoice_date':         datetime.utcnow().strftime("%Y-%m-%d"),
-            'invoice_number':       invoice_number,
-            'payment_instructions': "\n".join(lines[-5:]),  # last 5 lines = instructions
+            'payment_instructions': "\n".join(lines[-6:]),
             'invoice_text':         invoice_text
         }
 
-    # 5) render form + (when ready) preview on same page
+    # 5) Render form + preview
     return render_template_string("""
 <!doctype html>
 <html lang="en">
@@ -1017,33 +1017,53 @@ def generate_invoice():
   </style>
 </head>
 <body class="container py-5">
-  <!-- your existing navbar -->
+
+  <!-- Navbar -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-    <!-- … unchanged … -->
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/search-form">🧾 CPSApp</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="mainNavbar">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="/upload-form">📤 Upload</a></li>
+          <li class="nav-item"><a class="nav-link" href="/search-form">🔍 Search & Delete</a></li>
+          <li class="nav-item"><a class="nav-link" href="/view-packlist">📦 Pack_List</a></li>
+          <li class="nav-item"><a class="nav-link active" href="/generate-invoice">🧾 Generate Invoice</a></li>
+        </ul>
+        {% if session.get("user") %}
+        <div class="d-flex align-items-center">
+          <span class="navbar-text text-white me-3">👋 {{ session['user'] }}</span>
+          <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
   </nav>
 
   <h2 class="mb-4">🧾 Generate Invoice</h2>
 
   <form method="post">
-    <!-- File selector -->
+    <!-- Select file -->
     <div class="mb-3">
       <label>Select File (Live Session)</label>
       <select name="selected_file" class="form-select" onchange="this.form.submit()">
         <option value="">-- Select file --</option>
         {% for f in unique_files %}
-          <option value="{{f}}" {% if f==selected_file %}selected{% endif %}>{{f}}</option>
+        <option value="{{f}}" {% if f==selected_file %}selected{% endif %}>{{f}}</option>
         {% endfor %}
       </select>
     </div>
 
     {% if selected_file %}
-    <!-- Customer selector -->
+    <!-- Select customer -->
     <div class="mb-3">
       <label>Select Customer</label>
       <select name="selected_customer" class="form-select" onchange="this.form.submit()">
         <option value="">-- Select customer --</option>
         {% for c in customer_list %}
-          <option value="{{c}}" {% if c==selected_customer %}selected{% endif %}>{{c}}</option>
+        <option value="{{c}}" {% if c==selected_customer %}selected{% endif %}>{{c}}</option>
         {% endfor %}
       </select>
     </div>
@@ -1064,7 +1084,7 @@ def generate_invoice():
       <label><input type="radio" name="courier_method" value="Accumulation"> Accumulation (Free)</label>
     </div>
 
-    <!-- Multi-row ad-hoc items -->
+    <!-- Ad-hoc items table -->
     <h5 class="mt-4">Add Ad-hoc Items</h5>
     <table class="table" id="items-table">
       <thead>
@@ -1078,15 +1098,17 @@ def generate_invoice():
             <select name="item_id" class="form-select product-select">
               <option value="">-- select product --</option>
               {% for p in products %}
-                <option value="{{p.id}}" data-code="{{p.code}}" data-price="{{p.price}}">
-                  {{p.description}} ({{p.code}})
-                </option>
+              <option value="{{p.id}}" data-code="{{p.code}}" data-price="{{p.price}}">
+                {{p.description}} ({{p.code}})
+              </option>
               {% endfor %}
               <option value="other" data-code="" data-price="">Other</option>
             </select>
             <input type="hidden" name="item_code" class="item-code">
           </td>
-          <td><input type="text" name="item_desc" class="form-control item-desc" placeholder="Custom description"></td>
+          <td>
+            <input type="text" name="item_desc" class="form-control item-desc" placeholder="Custom description">
+          </td>
           <td><input type="number" name="item_qty" class="form-control" min="1" value="1"></td>
           <td><input type="number" name="item_price" class="form-control item-price" step="0.01" readonly></td>
           <td><button type="button" class="btn btn-outline-danger btn-sm remove-item">×</button></td>
@@ -1099,7 +1121,7 @@ def generate_invoice():
     {% endif %}
   </form>
 
-  <!-- JS for cloning rows & auto-fill -->
+  <!-- JS for clone/remove & autofill -->
   <script>
     function attachHandlers(row) {
       const sel = row.querySelector('.product-select');
@@ -1111,7 +1133,7 @@ def generate_invoice():
         pr.value = o.dataset.price || '';
         cd.value = o.dataset.code  || '';
         if (sel.value==='other') {
-          ds.style.display = 'block'; pr.readOnly = false; pr.value = '';
+          ds.style.display = 'block'; pr.readOnly = false; pr.value=''; 
         } else {
           ds.style.display = 'none'; pr.readOnly = true;
         }
@@ -1132,7 +1154,7 @@ def generate_invoice():
     document.querySelector('#items-table').addEventListener('click', e => {
       if (e.target.matches('.remove-item')) {
         const rows = document.querySelectorAll('.item-row');
-        if (rows.length>1) e.target.closest('tr').remove();
+        if (rows.length > 1) e.target.closest('tr').remove();
       }
     });
     attachHandlers(document.querySelector('.item-row'));
@@ -1145,8 +1167,11 @@ def generate_invoice():
     <p><strong>Hi:</strong> {{invoice_data.customer}}</p>
     <p><strong>Live Session:</strong> {{invoice_data.file}}</p>
     <p><strong>Date:</strong> {{invoice_data.invoice_date}}</p>
+
     <table class="table table-bordered">
-      <thead><tr><th>Description</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr></thead>
+      <thead>
+        <tr><th>Description</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr>
+      </thead>
       <tbody>
         {% for it in invoice_data['items'] %}
         <tr>
@@ -1156,19 +1181,32 @@ def generate_invoice():
           <td>${{ '%.2f'|format(it.Price * it.Qty) }}</td>
         </tr>
         {% endfor %}
-        <tr><td colspan="3"><strong>Total Quantity</strong></td><td>{{invoice_data.total_quantity}}</td></tr>
-        <tr><td colspan="3"><strong>Subtotal</strong></td><td>${{ '%.2f'|format(invoice_data.subtotal) }}</td></tr>
-        {% if invoice_data.courier_fee %}
-        <tr><td colspan="3"><strong>Courier Fee</strong></td><td>${{ '%.2f'|format(invoice_data.courier_fee) }}</td></tr>
-        {% endif %}
-        <tr><td colspan="3"><strong>Total</strong></td><td><strong>${{ '%.2f'|format(invoice_data.total) }}</strong></td></tr>
+        <tr>
+          <td colspan="3"><strong>Total Quantity</strong></td>
+          <td>{{invoice_data.total_quantity}}</td>
+        </tr>
+        <tr>
+          <td colspan="3"><strong>Subtotal</strong></td>
+          <td>${{ '%.2f'|format(invoice_data.subtotal) }}</td>
+        </tr>
+        <tr>
+          <td colspan="3"><strong>Courier Fee</strong></td>
+          <td>${{ '%.2f'|format(invoice_data.courier_fee) }}</td>
+        </tr>
+        <tr>
+          <td colspan="3"><strong>Total</strong></td>
+          <td><strong>${{ '%.2f'|format(invoice_data.total) }}</strong></td>
+        </tr>
       </tbody>
     </table>
+
+    <p><strong>Courier Method:</strong> {{invoice_data.courier}}</p>
     {% if invoice_data.collection_info %}
     <p><strong>Self Collection Location:</strong> {{invoice_data.collection_info}}</p>
     {% endif %}
+
     <div class="alert alert-info">
-      {{ invoice_data.payment_instructions.replace('\n','<br>')|safe }}
+      {{invoice_data.payment_instructions.replace('\\n','<br>')|safe}}
     </div>
   </div>
 
@@ -1186,14 +1224,15 @@ def generate_invoice():
     }
     function copyInvoiceAsImage() {
       html2canvas(document.getElementById('invoiceCapture'))
-        .then(canvas => canvas.toBlob(blob => {
+        .then(canvas => canvas.toBlob(blob =>
           navigator.clipboard.write([new ClipboardItem({'image/png': blob})])
             .then(()=>alert('Invoice image copied!'))
-            .catch(e=>alert('Copy failed: '+e));
-        }));
+            .catch(e=>alert('Copy failed: '+e))
+        ));
     }
   </script>
   {% endif %}
+
 </body>
 </html>
     """,
