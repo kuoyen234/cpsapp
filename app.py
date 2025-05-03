@@ -13,7 +13,6 @@ from flask import session, redirect, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
 from flask import render_template, request
-from flask_login import login_required
 
 # === Supabase Config ===
 SUPABASE_URL = "https://wmthdsalqsrdiwxbmfey.supabase.co"
