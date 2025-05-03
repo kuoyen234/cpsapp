@@ -858,37 +858,35 @@ def invoice():
 @app.route('/generate-invoice', methods=['GET', 'POST'])
 @login_required
 def generate_invoice():
-    selected_file      = None
-    selected_customer  = None
-    invoice_data       = None
-    error              = None
-    courier_fee        = 0
-    total_amount       = 0
-    total_quantity     = 0
+    # — initialize —
+    selected_file     = None
+    selected_customer = None
+    invoice_data      = None
+    error             = None
 
-    # 1) Fetch & group all bill data by file → customer
+    # 1) load & group all bill data by file → customer
     file_rows = supabase.table("bills")\
                        .select("source_file, row_data")\
                        .execute().data
     file_to_rows = {}
-    for row in file_rows:
-        f = row.get("source_file")
-        d = row.get("row_data", {})
+    for r in file_rows:
+        f = r.get("source_file")
+        d = r.get("row_data", {})
         if f:
             file_to_rows.setdefault(f, []).append(d)
-    unique_files   = sorted(file_to_rows.keys(), reverse=True)
+    unique_files = sorted(file_to_rows.keys(), reverse=True)
 
-    # build customer list for the selected file
-    selected_file     = request.form.get("selected_file", "")
-    all_rows          = file_to_rows.get(selected_file, []) if selected_file else []
-    customer_to_rows  = {}
+    # 2) build customer list for the selected file
+    selected_file    = request.form.get("selected_file", "")
+    all_rows         = file_to_rows.get(selected_file, []) if selected_file else []
+    customer_to_rows = {}
     for d in all_rows:
         cust = str(d.get("Name","")).strip()
         if cust:
             customer_to_rows.setdefault(cust, []).append(d)
     customer_list = sorted(customer_to_rows.keys())
 
-    # 2) Fetch your products table for multi-row ad-hoc items
+    # 3) pull products table for ad-hoc lines
     raw_prods = supabase.table("products")\
                         .select("id,description,code,price")\
                         .order("description")\
@@ -900,27 +898,28 @@ def generate_invoice():
         "price":       float(p.get("price") or 0)
     } for p in raw_prods]
 
-    # 3) If form POST & customer chosen → build invoice
+    # 4) if form submitted with a customer, build invoice
     if selected_file and request.form.get("selected_customer"):
         selected_customer = request.form.get("selected_customer")
-
         courier_method    = request.form.get("courier_method", "")
-        outlet_option     = request.form.get("outlet_option","")
+        outlet_option     = request.form.get("outlet_option", "")
 
-        # 3a) purchased-based items (unchanged)
+        # 4a) existing purchases from Excel “Bill” tab
         items_map = {}
         subtotal  = 0
+        total_qty = 0
         for d in customer_to_rows[selected_customer]:
             desc  = str(d.get("Description","") or d.get("Name","")).strip()
             price = float(d.get("Price") or 0)
             key   = (desc, price)
-            items_map.setdefault(key, {"Description": desc, "Price": price, "Qty": 0})
+            if key not in items_map:
+                items_map[key] = {"Description": desc, "Price": price, "Qty": 0}
             items_map[key]["Qty"] += 1
-            subtotal += price
-            total_quantity += 1
+            subtotal  += price
+            total_qty += 1
         items = list(items_map.values())
 
-        # 3b) **multi-row ad-hoc items** from your products dropdown
+        # 4b) ad-hoc multi-row items
         ids    = request.form.getlist("item_id")
         descs  = request.form.getlist("item_desc")
         qtys   = request.form.getlist("item_qty")
@@ -928,22 +927,22 @@ def generate_invoice():
         codes  = request.form.getlist("item_code")
 
         for pid, desc, q, p, c in zip(ids, descs, qtys, prices, codes):
-            # skip empty rows
             if not (pid or desc.strip()):
                 continue
             qty   = int(q or 0)
             price = float(p or 0)
             if pid != "other":
-                prod = next((x for x in products if x["id"] == pid), None)
+                prod  = next((x for x in products if x["id"] == pid), None)
                 label = f"{prod['description']} ({prod['code']})" if prod else desc
             else:
                 label = desc
             items.append({"Description": label, "Price": price, "Qty": qty})
-            subtotal      += price * qty
-            total_quantity += qty
+            subtotal  += price * qty
+            total_qty += qty
 
-        # 3c) courier logic (unchanged)
+        # 4c) courier logic
         courier_label = courier_method
+        courier_fee   = 0
         if courier_method == "Courier Service":
             courier_fee = 4
         elif courier_method == "Self Collection" and outlet_option:
@@ -953,31 +952,30 @@ def generate_invoice():
 
         total_amount = subtotal + courier_fee
 
-        # 3d) build your existing invoice_text & invoice_data
-        invoice_lines = [
+        # 4d) compose invoice text & data
+        invoice_number = f"INV-{datetime.utcnow():%Y%m%d%H%M%S}"
+        lines = [
             f"Hi {selected_customer},",
             "Thank you for your support.",
             "",
-            f"Invoice Number: INV-{datetime.utcnow():%Y%m%d%H%M%S}",
+            f"Invoice Number: {invoice_number}",
             f"Live Session: {selected_file}",
             f"Date: {datetime.utcnow():%Y-%m-%d}",
             "",
             "Items:"
         ]
         for it in items:
-            invoice_lines.append(
-                f"- {it['Description']} | ${it['Price']} x {it['Qty']} = ${it['Price']*it['Qty']:.2f}"
-            )
-        invoice_lines += [
-            f"Total Quantity: {total_quantity}",
-            f"Subtotal: ${subtotal:.2f}",
+            lines.append(f"- {it['Description']} | ${it['Price']} x {it['Qty']} = ${it['Price']*it['Qty']:.2f}")
+        lines += [
+            f"Total Quantity: {total_qty}",
+            f"Subtotal: ${subtotal:.2f}"
         ]
         if courier_fee:
-            invoice_lines.append(f"Courier Fee: ${courier_fee:.2f}")
-        invoice_lines.append(f"Total: ${total_amount:.2f}")
+            lines.append(f"Courier Fee: ${courier_fee:.2f}")
+        lines.append(f"Total: ${total_amount:.2f}")
         if courier_label.startswith("Self Collection"):
-            invoice_lines.append(f"Self Collection Location: {outlet_option}")
-        invoice_lines += [
+            lines.append(f"Self Collection Location: {outlet_option}")
+        lines += [
             "",
             "Please make payment via:",
             "1. Bank transfer to OCBC current account 588056739001",
@@ -985,6 +983,7 @@ def generate_invoice():
             "Cupid Apparel Pte Ltd",
             "** Kindly indicate your FB name in the payment description, and do a screenshot of your payment"
         ]
+        invoice_text = "\n".join(lines)
 
         invoice_data = {
             'file':                 selected_file,
@@ -994,21 +993,15 @@ def generate_invoice():
             'courier':              courier_label,
             'courier_fee':          courier_fee,
             'total':                total_amount,
-            'total_quantity':       total_quantity,
-            'collection_info':      outlet_option,
-            'invoice_date':         datetime.utcnow().strftime('%Y-%m-%d'),
-            'invoice_number':       f"INV-{datetime.utcnow():%Y%m%d%H%M%S}",
-            'payment_instructions': "\n".join([
-                "Please make payment via:",
-                "1. Bank transfer to OCBC current account 588056739001",
-                "2. PAYNOW to UEN number: 201013470W",
-                "Cupid Apparel Pte Ltd",
-                "** Kindly indicate your FB name in the payment description, and do a screenshot of your payment"
-            ]),
-            'invoice_text':         "\n".join(invoice_lines)
+            'total_quantity':       total_qty,
+            'collection_info':      outlet_option if courier_label.startswith("Self Collection") else "",
+            'invoice_date':         datetime.utcnow().strftime("%Y-%m-%d"),
+            'invoice_number':       invoice_number,
+            'payment_instructions': "\n".join(lines[-5:]),  # last 5 lines = instructions
+            'invoice_text':         invoice_text
         }
 
-    # 4) Render everything inline
+    # 5) render form + (when ready) preview on same page
     return render_template_string("""
 <!doctype html>
 <html lang="en">
@@ -1019,21 +1012,20 @@ def generate_invoice():
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
-    .item-desc { display:none; }
-    .remove-item { font-size:1.2rem; }
+    .item-desc { display: none; }
+    .remove-item { font-size: 1.2rem; }
   </style>
 </head>
 <body class="container py-5">
-
-  <!-- your navbar (unchanged) -->
+  <!-- your existing navbar -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-    <!-- … -->
+    <!-- … unchanged … -->
   </nav>
 
   <h2 class="mb-4">🧾 Generate Invoice</h2>
 
   <form method="post">
-    <!-- File select -->
+    <!-- File selector -->
     <div class="mb-3">
       <label>Select File (Live Session)</label>
       <select name="selected_file" class="form-select" onchange="this.form.submit()">
@@ -1045,7 +1037,7 @@ def generate_invoice():
     </div>
 
     {% if selected_file %}
-    <!-- Customer select -->
+    <!-- Customer selector -->
     <div class="mb-3">
       <label>Select Customer</label>
       <select name="selected_customer" class="form-select" onchange="this.form.submit()">
@@ -1058,7 +1050,7 @@ def generate_invoice():
     {% endif %}
 
     {% if selected_customer %}
-    <!-- Courier method (unchanged) -->
+    <!-- Courier options -->
     <div class="mb-3">
       <label>Courier Method</label><br>
       <label><input type="radio" name="courier_method" value="Courier Service" required> Courier Service (+$4)</label><br>
@@ -1072,16 +1064,12 @@ def generate_invoice():
       <label><input type="radio" name="courier_method" value="Accumulation"> Accumulation (Free)</label>
     </div>
 
-    <!-- NEW: multi-row ad-hoc items picker -->
+    <!-- Multi-row ad-hoc items -->
     <h5 class="mt-4">Add Ad-hoc Items</h5>
     <table class="table" id="items-table">
       <thead>
         <tr>
-          <th>Product (Code)</th>
-          <th>Description</th>
-          <th>Qty</th>
-          <th>Unit Price</th>
-          <th></th>
+          <th>Product (Code)</th><th>Description</th><th>Qty</th><th>Unit Price</th><th></th>
         </tr>
       </thead>
       <tbody>
@@ -1090,9 +1078,7 @@ def generate_invoice():
             <select name="item_id" class="form-select product-select">
               <option value="">-- select product --</option>
               {% for p in products %}
-                <option value="{{p.id}}"
-                        data-code="{{p.code}}"
-                        data-price="{{p.price}}">
+                <option value="{{p.id}}" data-code="{{p.code}}" data-price="{{p.price}}">
                   {{p.description}} ({{p.code}})
                 </option>
               {% endfor %}
@@ -1100,93 +1086,114 @@ def generate_invoice():
             </select>
             <input type="hidden" name="item_code" class="item-code">
           </td>
-          <td>
-            <input type="text" name="item_desc"
-                   class="form-control item-desc"
-                   placeholder="Custom description">
-          </td>
-          <td>
-            <input type="number" name="item_qty"
-                   class="form-control" min="1" value="1">
-          </td>
-          <td>
-            <input type="number" name="item_price"
-                   class="form-control item-price"
-                   step="0.01" readonly>
-          </td>
-          <td>
-            <button type="button"
-                    class="btn btn-outline-danger btn-sm remove-item">×</button>
-          </td>
+          <td><input type="text" name="item_desc" class="form-control item-desc" placeholder="Custom description"></td>
+          <td><input type="number" name="item_qty" class="form-control" min="1" value="1"></td>
+          <td><input type="number" name="item_price" class="form-control item-price" step="0.01" readonly></td>
+          <td><button type="button" class="btn btn-outline-danger btn-sm remove-item">×</button></td>
         </tr>
       </tbody>
     </table>
-    <button type="button" id="add-item"
-            class="btn btn-sm btn-outline-primary mb-3">
-      Add Item
-    </button>
+    <button type="button" id="add-item" class="btn btn-sm btn-outline-primary mb-3">Add Item</button>
 
-    <button class="btn btn-primary" type="submit">
-      Preview Invoice
-    </button>
+    <button class="btn btn-primary" type="submit">Preview Invoice</button>
     {% endif %}
   </form>
 
-  <!-- JS to clone/remove rows & auto-fill price/desc -->
+  <!-- JS for cloning rows & auto-fill -->
   <script>
     function attachHandlers(row) {
-      const sel  = row.querySelector('.product-select');
-      const pr   = row.querySelector('.item-price');
-      const ds   = row.querySelector('.item-desc');
-      const cd   = row.querySelector('.item-code');
-
+      const sel = row.querySelector('.product-select');
+      const pr  = row.querySelector('.item-price');
+      const ds  = row.querySelector('.item-desc');
+      const cd  = row.querySelector('.item-code');
       sel.onchange = () => {
         const o = sel.selectedOptions[0];
         pr.value = o.dataset.price || '';
         cd.value = o.dataset.code  || '';
         if (sel.value==='other') {
-          ds.style.display = 'block';
-          pr.readOnly = false;
-          pr.value    = '';
+          ds.style.display = 'block'; pr.readOnly = false; pr.value = '';
         } else {
-          ds.style.display = 'none';
-          pr.readOnly = true;
+          ds.style.display = 'none'; pr.readOnly = true;
         }
       };
     }
-
     document.getElementById('add-item').onclick = () => {
       const tbody = document.querySelector('#items-table tbody');
       const proto = tbody.querySelector('.item-row');
       const nr    = proto.cloneNode(true);
-      nr.querySelector('select').value             = '';
-      nr.querySelector('.item-price').value        = '';
-      nr.querySelector('.item-desc').value         = '';
+      nr.querySelector('select').value = '';
+      nr.querySelector('.item-price').value = '';
+      nr.querySelector('.item-desc').value = '';
       nr.querySelector('.item-desc').style.display = 'none';
-      nr.querySelector('.item-code').value         = '';
+      nr.querySelector('.item-code').value = '';
       tbody.appendChild(nr);
       attachHandlers(nr);
     };
-
     document.querySelector('#items-table').addEventListener('click', e => {
       if (e.target.matches('.remove-item')) {
         const rows = document.querySelectorAll('.item-row');
-        if (rows.length > 1) e.target.closest('tr').remove();
+        if (rows.length>1) e.target.closest('tr').remove();
       }
     });
-
-    // bind the initial row
     attachHandlers(document.querySelector('.item-row'));
   </script>
 
-  <!-- your existing invoice preview & copy-buttons -->
+  <!-- Invoice preview -->
   {% if invoice_data %}
   <div class="mt-5" id="invoiceCapture">
-    <!-- … exactly your prior preview HTML … -->
+    <h4>Invoice Preview – {{invoice_data.invoice_number}}</h4>
+    <p><strong>Hi:</strong> {{invoice_data.customer}}</p>
+    <p><strong>Live Session:</strong> {{invoice_data.file}}</p>
+    <p><strong>Date:</strong> {{invoice_data.invoice_date}}</p>
+    <table class="table table-bordered">
+      <thead><tr><th>Description</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr></thead>
+      <tbody>
+        {% for it in invoice_data.items %}
+        <tr>
+          <td>{{it.Description}}</td>
+          <td>${{ '%.2f'|format(it.Price) }}</td>
+          <td>{{it.Qty}}</td>
+          <td>${{ '%.2f'|format(it.Price * it.Qty) }}</td>
+        </tr>
+        {% endfor %}
+        <tr><td colspan="3"><strong>Total Quantity</strong></td><td>{{invoice_data.total_quantity}}</td></tr>
+        <tr><td colspan="3"><strong>Subtotal</strong></td><td>${{ '%.2f'|format(invoice_data.subtotal) }}</td></tr>
+        {% if invoice_data.courier_fee %}
+        <tr><td colspan="3"><strong>Courier Fee</strong></td><td>${{ '%.2f'|format(invoice_data.courier_fee) }}</td></tr>
+        {% endif %}
+        <tr><td colspan="3"><strong>Total</strong></td><td><strong>${{ '%.2f'|format(invoice_data.total) }}</strong></td></tr>
+      </tbody>
+    </table>
+    {% if invoice_data.collection_info %}
+    <p><strong>Self Collection Location:</strong> {{invoice_data.collection_info}}</p>
+    {% endif %}
+    <div class="alert alert-info">
+      {{ invoice_data.payment_instructions.replace('\n','<br>')|safe }}
+    </div>
   </div>
-  <!-- html2canvas copy scripts … -->
-  {% endif %}
 
+  <div class="mt-4">
+    <button class="btn btn-secondary" onclick="copyText()">📋 Copy Text</button>
+    <button class="btn btn-success ms-2" onclick="copyInvoiceAsImage()">🖼️ Copy as Image</button>
+    <textarea id="invoiceText" class="form-control mt-3" rows="10">{{invoice_data.invoice_text}}</textarea>
+  </div>
+
+  <script>
+    function copyText() {
+      const ta = document.getElementById('invoiceText');
+      ta.select(); document.execCommand('copy');
+      alert('Invoice text copied!');
+    }
+    function copyInvoiceAsImage() {
+      html2canvas(document.getElementById('invoiceCapture'))
+        .then(canvas => canvas.toBlob(blob => {
+          navigator.clipboard.write([new ClipboardItem({'image/png': blob})])
+            .then(()=>alert('Invoice image copied!'))
+            .catch(e=>alert('Copy failed: '+e));
+        }));
+    }
+  </script>
+  {% endif %}
 </body>
 </html>
     """,
@@ -1197,7 +1204,7 @@ def generate_invoice():
     products         = products,
     invoice_data     = invoice_data,
     error            = error
-    )
+)
 
 @app.route('/')
 @login_required
