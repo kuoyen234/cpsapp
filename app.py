@@ -934,8 +934,10 @@ def generate_invoice():
                 courier_fee = 4
             elif courier_method == "Self Collection" and outlet_option:
                 courier_label = f"Self Collection - {outlet_option}"
-            elif courier_method == "Accumulation" and outlet_option:
-                courier_label = f"Park"
+                courier_fee =0
+            elif courier_method == "Accumulation"
+                courier_label = "Park"
+                courier_fee =0
 
             total_amount = subtotal + courier_fee
 
