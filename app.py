@@ -855,7 +855,7 @@ def invoice():
        show_invoice=show_invoice)
 
 from flask import request, render_template_string, session
-from flask_login import login_required
+
 from datetime import datetime
 
 @app.route('/generate-invoice', methods=['GET', 'POST'])
