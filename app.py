@@ -903,7 +903,8 @@ def generate_invoice():
     # 3) If form POST & customer chosen → build invoice
     if selected_file and request.form.get("selected_customer"):
         selected_customer = request.form.get("selected_customer")
-        courier_method    = request.form.get("courier_method")
+
+        courier_method    = request.form.get("courier_method", "")
         outlet_option     = request.form.get("outlet_option","")
 
         # 3a) purchased-based items (unchanged)
