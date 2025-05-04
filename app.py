@@ -883,7 +883,7 @@ def generate_invoice():
     all_rows         = file_to_rows.get(selected_file, []) if selected_file else []
     customer_to_rows = {}
     for d in all_rows:
-        cust = str(d.get("Name","")).strip()
+        cust = str(d.get("Name", "")).strip()
         if cust:
             customer_to_rows.setdefault(cust, []).append(d)
     customer_list = sorted(customer_to_rows.keys())
@@ -895,8 +895,8 @@ def generate_invoice():
                         .execute().data
     products = [{
         "id":          str(p["id"]),
-        "description": p.get("description",""),
-        "code":        p.get("code",""),
+        "description": p.get("description", ""),
+        "code":        p.get("code", ""),
         "price":       float(p.get("price") or 0)
     } for p in raw_prods]
 
@@ -911,7 +911,7 @@ def generate_invoice():
         subtotal  = 0
         total_qty = 0
         for d in customer_to_rows[selected_customer]:
-            desc  = str(d.get("Description","") or d.get("Name","")).strip()
+            desc  = str(d.get("Description", "") or d.get("Name", "")).strip()
             price = float(d.get("Price") or 0)
             key   = (desc, price)
             items_map.setdefault(key, {"Description": desc, "Price": price, "Qty": 0})
@@ -1011,7 +1011,7 @@ def generate_invoice():
 </head>
 <body class="container py-5">
 
-  <!-- Navbar (unchanged) -->
+  <!-- Navbar (your existing markup) -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
     <!-- … -->
   </nav>
@@ -1025,7 +1025,7 @@ def generate_invoice():
       <select name="selected_file" class="form-select" onchange="this.form.submit()">
         <option value="">-- Select file --</option>
         {% for f in unique_files %}
-        <option value="{{f}}" {% if f==selected_file %}selected{% endif %}>{{f}}</option>
+          <option value="{{f}}" {% if f==selected_file %}selected{% endif %}>{{f}}</option>
         {% endfor %}
       </select>
     </div>
@@ -1037,7 +1037,7 @@ def generate_invoice():
       <select name="selected_customer" class="form-select" onchange="this.form.submit()">
         <option value="">-- Select customer --</option>
         {% for c in customer_list %}
-        <option value="{{c}}" {% if c==selected_customer %}selected{% endif %}>{{c}}</option>
+          <option value="{{c}}" {% if c==selected_customer %}selected{% endif %}>{{c}}</option>
         {% endfor %}
       </select>
     </div>
@@ -1061,7 +1061,7 @@ def generate_invoice():
       </label>
       <select name="outlet_option" class="form-select mt-2"
               onchange="document.getElementById('invoice-form').submit()">
-        <option value="">-- Outlet (ignored) --</option>
+        <option value="">-- Outlet (optional) --</option>
         <option>Westmall</option>
         <option>Jurong Point 2</option>
         <option>Northpoint City</option>
@@ -1079,11 +1079,7 @@ def generate_invoice():
     <table class="table" id="items-table">
       <thead>
         <tr>
-          <th>Product (Code)</th>
-          <th>Description</th>
-          <th>Qty</th>
-          <th>Unit Price</th>
-          <th></th>
+          <th>Product (Code)</th><th>Description</th><th>Qty</th><th>Unit Price</th><th></th>
         </tr>
       </thead>
       <tbody>
@@ -1092,17 +1088,15 @@ def generate_invoice():
             <select name="item_id" class="form-select product-select">
               <option value="">-- select product --</option>
               {% for p in products %}
-              <option value="{{p.id}}" data-code="{{p.code}}" data-price="{{p.price}}">
-                {{p.description}} ({{p.code}})
-              </option>
+                <option value="{{p.id}}" data-code="{{p.code}}" data-price="{{p.price}}">
+                  {{p.description}} ({{p.code}})
+                </option>
               {% endfor %}
               <option value="other" data-code="" data-price="">Other</option>
             </select>
             <input type="hidden" name="item_code" class="item-code">
           </td>
-          <td>
-            <input type="text" name="item_desc" class="form-control item-desc" placeholder="Custom description">
-          </td>
+          <td><input type="text" name="item_desc" class="form-control item-desc" placeholder="Custom description"></td>
           <td><input type="number" name="item_qty" class="form-control" min="1" value="1"></td>
           <td><input type="number" name="item_price" class="form-control item-price" step="0.01" readonly></td>
           <td><button type="button" class="btn btn-outline-danger btn-sm remove-item">×</button></td>
@@ -1110,22 +1104,56 @@ def generate_invoice():
       </tbody>
     </table>
     <button type="button" id="add-item" class="btn btn-sm btn-outline-primary mb-3">Add Item</button>
-    <!-- no Preview button -->
+    <!-- No Preview button -->
     {% endif %}
   </form>
 
-  <!-- JS for cloning & autofill -->
+  <!-- JS for cloning rows & auto-fill price/code -->
   <script>
-    // … same as before …
+    function attachHandlers(row) {
+      const sel = row.querySelector('.product-select');
+      const pr  = row.querySelector('.item-price');
+      const ds  = row.querySelector('.item-desc');
+      const cd  = row.querySelector('.item-code');
+      sel.onchange = () => {
+        const opt = sel.selectedOptions[0];
+        pr.value = opt.dataset.price || '';
+        cd.value = opt.dataset.code  || '';
+        if (sel.value === 'other') {
+          ds.style.display = 'block'; pr.readOnly = false; pr.value = '';
+        } else {
+          ds.style.display = 'none'; pr.readOnly = true;
+        }
+      };
+    }
+    document.getElementById('add-item').onclick = () => {
+      const tbody = document.querySelector('#items-table tbody');
+      const proto = tbody.querySelector('.item-row');
+      const clone = proto.cloneNode(true);
+      clone.querySelector('.product-select').value = '';
+      clone.querySelector('.item-price').value     = '';
+      clone.querySelector('.item-desc').value      = '';
+      clone.querySelector('.item-desc').style.display = 'none';
+      clone.querySelector('.item-code').value      = '';
+      tbody.appendChild(clone);
+      attachHandlers(clone);
+    };
+    document.querySelector('#items-table').addEventListener('click', e => {
+      if (e.target.matches('.remove-item')) {
+        const rows = document.querySelectorAll('.item-row');
+        if (rows.length > 1) e.target.closest('tr').remove();
+      }
+    });
+    attachHandlers(document.querySelector('.item-row'));
   </script>
 
   <!-- Invoice preview -->
   {% if invoice_data %}
   <div class="mt-5" id="invoiceCapture">
     <h4>Invoice Preview</h4>
-    <p><strong>Hi:</strong> {{invoice_data.customer}}</p>
-    <p><strong>Live Session:</strong> {{invoice_data.file}}</p>
-    <p><strong>Date:</strong> {{invoice_data.invoice_date}}</p>
+    <p><strong>Hi:</strong> {{ invoice_data.customer }}</p>
+    <p><strong>Live Session:</strong> {{ invoice_data.file }}</p>
+    <p><strong>Date:</strong> {{ invoice_data.invoice_date }}</p>
 
     <table class="table table-bordered">
       <thead>
@@ -1134,15 +1162,15 @@ def generate_invoice():
       <tbody>
         {% for it in invoice_data['items'] %}
         <tr>
-          <td>{{it.Description}}</td>
+          <td>{{ it.Description }}</td>
           <td>${{ '%.2f'|format(it.Price) }}</td>
-          <td>{{it.Qty}}</td>
+          <td>{{ it.Qty }}</td>
           <td>${{ '%.2f'|format(it.Price * it.Qty) }}</td>
         </tr>
         {% endfor %}
         <tr>
           <td colspan="3"><strong>Total Quantity</strong></td>
-          <td>{{invoice_data.total_quantity}}</td>
+          <td>{{ invoice_data.total_quantity }}</td>
         </tr>
         <tr>
           <td colspan="3"><strong>Subtotal</strong></td>
@@ -1159,24 +1187,24 @@ def generate_invoice():
       </tbody>
     </table>
 
-    <p><strong>Courier Method:</strong> {{invoice_data.courier}}</p>
+    <p><strong>Courier Method:</strong> {{ invoice_data.courier }}</p>
 
     <div class="alert alert-info">
-      {{invoice_data.payment_instructions.replace('\\n','<br>')|safe}}
+      {{ invoice_data.payment_instructions.replace('\\n','<br>')|safe }}
     </div>
   </div>
-  <!-- copy buttons, textarea… -->
   {% endif %}
 </body>
 </html>
     """,
-    unique_files     = unique_files,
-    selected_file    = selected_file,
-    selected_customer= selected_customer,
-    customer_list    = customer_list,
-    products         = products,
-    invoice_data     = invoice_data
+    unique_files      = unique_files,
+    selected_file     = selected_file,
+    selected_customer = selected_customer,
+    customer_list     = customer_list,
+    products          = products,
+    invoice_data      = invoice_data
 )
+
 
 @app.route('/')
 @login_required
