@@ -854,19 +854,15 @@ def invoice():
        products=products, courier_fee=courier_fee, total_amount=total_amount,
        show_invoice=show_invoice)
 
-from flask import request, render_template_string, session
-from datetime import datetime
 
 from flask import request, render_template_string, session
 from datetime import datetime
-
-from flask import request, render_template_string, session
-from datetime import datetime
+import json
 
 @app.route('/generate-invoice', methods=['GET', 'POST'])
 @login_required
 def generate_invoice():
-    # 0) Grab any posted values
+    # 0) Grab posted values
     selected_file     = request.form.get("selected_file", "")
     selected_customer = request.form.get("selected_customer", "")
     invoice_data      = None
@@ -892,10 +888,10 @@ def generate_invoice():
             customer_to_rows.setdefault(name, []).append(d)
     customer_list = sorted(customer_to_rows.keys())
 
-    # 3) Pull your **Master-tab** product catalogue for ad-hoc items
+    # 3) Pull full Master-tab product catalogue
     raw_prods = supabase.table("products")\
                         .select("id,design_number,code,description,price,color")\
-                        .order("code")\
+                        .order("design_number")\
                         .execute().data
     products = [{
         "id":            str(p["id"]),
@@ -905,86 +901,101 @@ def generate_invoice():
         "price":         float(p["price"] or 0),
         "color":         p["color"]
     } for p in raw_prods]
-    # ensure sorted by code in Python too
-    products.sort(key=lambda x: x["code"])
+    # Group SKUs by design_number
+    design_map = {}
+    for p in products:
+        design_map.setdefault(p["design_number"], []).append(p)
+    designs = sorted(
+        [{"design_number": d, "description": design_map[d][0]["description"]} for d in design_map],
+        key=lambda x: x["design_number"]
+    )
+    design_map_json = json.dumps({
+        d: [{"id": sku["id"], "color": sku["color"], "price": sku["price"], "code": sku["code"]}
+            for sku in design_map[d]]
+        for d in design_map
+    })
 
-    # 4) When both file & customer are chosen, build the invoice
+    # 4) Build invoice when both file & customer chosen
     if selected_file and selected_customer:
-        # 4a) Aggregate existing Bill-tab purchases
+        # a) Aggregate existing Bill-tab purchases
         items_map = {}
-        subtotal  = total_qty = 0
+        subtotal = total_qty = 0
         for d in customer_to_rows[selected_customer]:
             desc  = (d.get("Description") or "").strip()
             price = float(d.get("Price") or 0)
             key   = (desc, price)
             items_map.setdefault(key, {"Description": desc, "Price": price, "Qty": 0})
             items_map[key]["Qty"] += 1
-            subtotal  += price
+            subtotal += price
             total_qty += 1
         items = list(items_map.values())
 
-        # 4b) Read & remember **all** ad-hoc rows from the Master list
-        ids    = request.form.getlist("item_id")
-        descs  = request.form.getlist("item_desc")
-        qtys   = request.form.getlist("item_qty")
-        prices = request.form.getlist("item_price")
-        codes  = request.form.getlist("item_code")
-        for pid, desc, q, p, c in zip(ids, descs, qtys, prices, codes):
-            if not (pid or desc.strip()):
+        # b) Read & remember ad-hoc rows
+        designs_post = request.form.getlist("item_design")
+        colors_post  = request.form.getlist("item_color")
+        ids_post     = request.form.getlist("item_id")
+        descs_post   = request.form.getlist("item_desc")
+        qtys_post    = request.form.getlist("item_qty")
+        prices_post  = request.form.getlist("item_price")
+        for design, color, pid, desc, q, p in zip(designs_post, colors_post, ids_post, descs_post, qtys_post, prices_post):
+            # skip entirely blank rows
+            if not (design or desc.strip()):
                 continue
             qty   = int(q or 0)
             price = float(p or 0)
-            if pid != "other":
-                prod  = next((x for x in products if x["id"] == pid), None)
-                label = f"{prod['design_number']} | {prod['code']} | {prod['description']} | {prod['color']}"
+            if pid and pid != "other":
+                # find the SKU by id
+                sku = next((x for x in products if x["id"] == pid), None)
+                label = f"{sku['design_number']} | {sku['code']} | {sku['description']} | {sku['color']}"
             else:
-                # free-text
+                # free-text entry
                 label = desc
             adhoc_items.append({
-                "id":    pid,
-                "code":  c,
-                "desc":  desc,
-                "qty":   qty,
-                "price": price
+                "design": design,
+                "color":  color,
+                "id":     pid,
+                "desc":   desc,
+                "qty":    qty,
+                "price":  price
             })
             items.append({"Description": label, "Price": price, "Qty": qty})
-            subtotal  += price * qty
+            subtotal += price * qty
             total_qty += qty
 
-        # 4c) Courier logic
-        method = request.form.get("courier_method","")
-        outlet = request.form.get("outlet_option","")
-        fee    = 4 if method=="Courier Service" else 0
-        label  = (f"Self Collection - {outlet}"
-                  if method=="Self Collection" and outlet else method or "")
-        total  = subtotal + fee
+        # c) Courier logic
+        method = request.form.get("courier_method", "")
+        outlet = request.form.get("outlet_option", "")
+        fee    = 4 if method == "Courier Service" else 0
+        courier_label = (f"Self Collection - {outlet}"
+                         if method == "Self Collection" and outlet
+                         else method or "")
+        total = subtotal + fee
 
-        # 4d) Build invoice_data
+        # d) Build invoice_data for preview
         lines = [
             f"Hi {selected_customer},",
-            "Thank you for your support.", "",
+            "Thank you for your support.",
+            "",
             f"Live Session: {selected_file}",
-            f"Date: {datetime.utcnow():%Y-%m-%d}", "",
+            f"Date: {datetime.utcnow():%Y-%m-%d}",
+            "",
             "Items:"
         ]
         for it in items:
-            lines.append(
-              f"- {it['Description']} | ${it['Price']} x {it['Qty']} = "
-              f"${it['Price']*it['Qty']:.2f}"
-            )
+            lines.append(f"- {it['Description']} | ${it['Price']} x {it['Qty']} = ${it['Price']*it['Qty']:.2f}")
         lines += [
             f"Total Quantity: {total_qty}",
             f"Subtotal: ${subtotal:.2f}",
             f"Courier Fee: ${fee:.2f}",
             f"Total: ${total:.2f}",
-            f"Courier Method: {label}", "",
+            f"Courier Method: {courier_label}",
+            "",
             "Please make payment via:",
             "1. Bank transfer to OCBC current account 588056739001",
             "2. PAYNOW to UEN number: 201013470W",
             "Cupid Apparel Pte Ltd",
-            "** Kindly indicate your FB name in the payment description, and screenshot your payment**"
+            "** Kindly indicate your FB name in the payment description, and do a screenshot of your payment"
         ]
-
         invoice_data = {
             "customer":             selected_customer,
             "file":                 selected_file,
@@ -994,29 +1005,29 @@ def generate_invoice():
             "subtotal":             subtotal,
             "courier_fee":          fee,
             "total":                total,
-            "courier":              label,
+            "courier":              courier_label,
             "payment_instructions": "\n".join(lines[-6:]),
             "invoice_text":         "\n".join(lines)
         }
 
-    # 5) Render form + preview
+    # 5) Render form and preview
     return render_template_string("""
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <style>.item-desc{display:none}.remove-item{font-size:1.2rem}</style>
+  <style>.remove-item{font-size:1.2rem}</style>
 </head>
 <body class="container py-5">
-
   <h2 class="mb-4">🧾 Generate Invoice</h2>
   <form method="post" id="invoice-form">
-    <!-- 1) File selector -->
+    <!-- file select -->
     <div class="mb-3">
       <label>Select File</label>
       <select name="selected_file" class="form-select" onchange="this.form.submit()">
-        <option value="">– choose session –</option>
+        <option value="">-- choose session --</option>
         {% for f in unique_files %}
           <option value="{{f}}" {% if f==selected_file %}selected{% endif %}>{{f}}</option>
         {% endfor %}
@@ -1024,11 +1035,11 @@ def generate_invoice():
     </div>
 
     {% if selected_file %}
-    <!-- 2) Customer selector -->
+    <!-- customer select -->
     <div class="mb-3">
       <label>Select Customer</label>
       <select name="selected_customer" class="form-select" onchange="this.form.submit()">
-        <option value="">– choose customer –</option>
+        <option value="">-- choose customer --</option>
         {% for c in customer_list %}
           <option value="{{c}}" {% if c==selected_customer %}selected{% endif %}>{{c}}</option>
         {% endfor %}
@@ -1037,72 +1048,75 @@ def generate_invoice():
     {% endif %}
 
     {% if selected_customer %}
-    <!-- 3) Courier options -->
+    <!-- courier options -->
     <div class="mb-3">
       <label>Courier Method</label><br>
       <label>
-        <input type="radio" name="courier_method" value="Courier Service" required
-               onchange="this.form.submit()"
+        <input type="radio" name="courier_method" value="Courier Service" required onchange="this.form.submit()"
                {% if invoice_data and invoice_data.courier=='Courier Service' %}checked{% endif %}>
         Courier (+$4)
       </label><br>
       <label>
-        <input type="radio" name="courier_method" value="Self Collection"
-               onchange="this.form.submit()"
+        <input type="radio" name="courier_method" value="Self Collection" onchange="this.form.submit()"
                {% if invoice_data and invoice_data.courier.startswith('Self Collection') %}checked{% endif %}>
         Self Collection
       </label>
       <select name="outlet_option" class="form-select mt-2" onchange="this.form.submit()">
-        <option value="">– Outlet –</option>
+        <option value="">-- Outlet --</option>
         <option>Westmall</option><option>Jurong Point 2</option><option>Northpoint City</option>
       </select><br>
       <label>
-        <input type="radio" name="courier_method" value="Accumulation"
-               onchange="this.form.submit()"
+        <input type="radio" name="courier_method" value="Accumulation" onchange="this.form.submit()"
                {% if invoice_data and invoice_data.courier=='Accumulation' %}checked{% endif %}>
         Accumulation
       </label>
     </div>
 
-    <!-- 4) Ad-hoc items from Master tab -->
+    <!-- ad-hoc items -->
     <h5 class="mt-4">Add Ad-hoc Items</h5>
     <table class="table" id="items-table">
       <thead><tr>
-        <th>Code &amp; Design</th><th>Description</th><th>Qty</th><th>Unit Price</th><th></th>
+        <th>Product</th><th>Color</th><th>Description</th><th>Qty</th><th>Price</th><th></th>
       </tr></thead>
       <tbody>
         {% set rows = adhoc_items or [{}] %}
         {% for row in rows %}
         <tr class="item-row">
           <td>
-            <select name="item_id" class="form-select product-select">
-              <option value="">– select product –</option>
-              {% for p in products %}
-                <option value="{{p.id}}"
-                        data-code="{{p.code}}"
-                        data-price="{{p.price}}"
-                        {% if row.id==p.id %}selected{% endif %}>
-                  {{p.code}} | {{p.design_number}}
+            <select name="item_design" class="form-select design-select">
+              <option value="">-- select product --</option>
+              {% for d in designs %}
+                <option value="{{d.design_number}}"
+                  {% if row.design==d.design_number %}selected{% endif %}>
+                  {{d.design_number}} – {{d.description}}
                 </option>
               {% endfor %}
-              <option value="other" data-code="" data-price=""
-                      {% if row.id=='other' %}selected{% endif %}>
-                Free Text…
-              </option>
+              <option value="other" {% if row.id=='other' %}selected{% endif %}>Free Text…</option>
             </select>
-            <input type="hidden" name="item_code" class="item-code" value="{{row.code or ''}}">
           </td>
           <td>
-            <input type="text" name="item_desc" class="form-control item-desc"
-                   placeholder="Description" value="{{row.desc or ''}}"
-                   {% if row.id!='other' %}style="display:none"{% endif %}>
+            <select name="item_color" class="form-select color-select">
+              <option value="">-- select color --</option>
+              {% if row.design %}
+                {% for sku in design_map[row.design] %}
+                  <option value="{{sku.color}}" data-id="{{sku.id}}" data-price="{{sku.price}}" data-code="{{sku.code}}"
+                    {% if row.color==sku.color %}selected{% endif %}>
+                    {{sku.color}}
+                  </option>
+                {% endfor %}
+              {% endif %}
+            </select>
           </td>
-          <td><input type="number" name="item_qty" class="form-control item-qty" min="1"
-                     value="{{row.qty or 1}}"></td>
-          <td><input type="number" name="item_price" class="form-control item-price" step="0.01"
-                     value="{{row.price or ''}}"
-                     {% if row.id!='other' %}readonly{% endif %}></td>
-          <td><button type="button" class="btn btn-outline-danger btn-sm remove-item">×</button></td>
+          <td>
+            <input type="text" name="item_desc" class="form-control desc-input"
+                   placeholder="Custom description" value="{{row.desc or ''}}">
+          </td>
+          <td><input type="number" name="item_qty" class="form-control qty-input" min="1" value="{{row.qty or 1}}"></td>
+          <td><input type="number" name="item_price" class="form-control price-input" step="0.01" value="{{row.price or ''}}"></td>
+          <td>
+            <input type="hidden" name="item_id" class="id-input" value="{{row.id or ''}}">
+            <button type="button" class="btn btn-outline-danger btn-sm remove-item">×</button>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -1112,45 +1126,81 @@ def generate_invoice():
   </form>
 
   <script>
+    const designMap = {{ design_map_json|safe }};
     const invoiceForm = document.getElementById('invoice-form');
+
     function attachHandlers(row) {
-      const sel = row.querySelector('.product-select');
-      const pr  = row.querySelector('.item-price');
-      const cd  = row.querySelector('.item-code');
-      const ds  = row.querySelector('.item-desc');
-      const qt  = row.querySelector('.item-qty');
-      sel.onchange = ()=>{
-        const o = sel.selectedOptions[0];
-        pr.value      = o.dataset.price||'';
-        cd.value      = o.dataset.code ||'';
-        ds.style.display = sel.value==='other'?'block':'none';
-        pr.readOnly   = sel.value!=='other';
+      const designSel = row.querySelector('.design-select');
+      const colorSel  = row.querySelector('.color-select');
+      const idIn      = row.querySelector('.id-input');
+      const priceIn   = row.querySelector('.price-input');
+      const codeIn    = row.querySelector('.code-input');
+      const descIn    = row.querySelector('.desc-input');
+      const qtyIn     = row.querySelector('.qty-input');
+
+      designSel.onchange = () => {
+        const d = designSel.value;
+        // populate colors
+        colorSel.innerHTML = '<option value="">-- select color --</option>';
+        if (designMap[d]) {
+          designMap[d].forEach(sku => {
+            const o = document.createElement('option');
+            o.value = sku.color;
+            o.dataset.id = sku.id;
+            o.dataset.price = sku.price;
+            o.dataset.code = sku.code;
+            o.textContent = sku.color;
+            colorSel.appendChild(o);
+          });
+        }
+        // reset downstream
+        idIn.value = '';
+        priceIn.value = '';
+        codeIn.value = '';
+        descIn.value = '';
+      };
+
+      colorSel.onchange = () => {
+        const o = colorSel.selectedOptions[0];
+        idIn.value    = o.dataset.id || '';
+        priceIn.value = o.dataset.price || '';
+        codeIn.value  = o.dataset.code || '';
+        // set desc to product description if not free-text
+        if (designSel.value !== 'other') {
+          descIn.value = '';
+          descIn.readOnly = true;
+        } else {
+          descIn.readOnly = false;
+        }
         invoiceForm.submit();
       };
-      ds.onchange = qt.onchange = ()=> invoiceForm.submit();
+
+      descIn.onchange = qtyIn.onchange = () => invoiceForm.submit();
     }
-    document.getElementById('add-item').onclick = ()=>{
+
+    document.getElementById('add-item').onclick = () => {
       const tbody = document.querySelector('#items-table tbody');
       const proto = tbody.querySelector('.item-row');
       const nr    = proto.cloneNode(true);
-      nr.querySelector('.product-select').value = '';
-      nr.querySelector('.item-price').value     = '';
-      nr.querySelector('.item-desc').value      = '';
-      nr.querySelector('.item-desc').style.display = 'none';
-      nr.querySelector('.item-code').value      = '';
-      nr.querySelector('.item-qty').value       = 1;
+      nr.querySelectorAll('select, input').forEach(el => {
+        if (el.type === 'number' || el.tagName==='SELECT') el.value = '';
+        if (el.type === 'text') el.value = '';
+      });
+      nr.querySelector('.qty-input').value = 1;
       tbody.appendChild(nr);
       attachHandlers(nr);
     };
-    document.querySelector('#items-table').addEventListener('click', e=>{
-      if(e.target.matches('.remove-item')){
+
+    document.querySelector('#items-table').addEventListener('click', e => {
+      if (e.target.matches('.remove-item')) {
         const rows = document.querySelectorAll('.item-row');
-        if(rows.length>1) e.target.closest('tr').remove();
+        if (rows.length > 1) e.target.closest('tr').remove();
         invoiceForm.submit();
       }
     });
-    const firstRow = document.querySelector('.item-row');
-    if(firstRow) attachHandlers(firstRow);
+
+    // bind initial row
+    document.querySelectorAll('.item-row').forEach(attachHandlers);
   </script>
 
   {% if invoice_data %}
@@ -1160,17 +1210,15 @@ def generate_invoice():
     <p><strong>Session:</strong> {{invoice_data.file}}</p>
     <p><strong>Date:</strong> {{invoice_data.invoice_date}}</p>
     <table class="table table-bordered">
-      <thead><tr>
-        <th>Description</th><th>Price</th><th>Qty</th><th>Subtotal</th>
-      </tr></thead>
+      <thead><tr><th>Description</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr></thead>
       <tbody>
         {% for it in invoice_data['items'] %}
-          <tr>
-            <td>{{it.Description}}</td>
-            <td>${{ '%.2f'|format(it.Price) }}</td>
-            <td>{{it.Qty}}</td>
-            <td>${{ '%.2f'|format(it.Price * it.Qty) }}</td>
-          </tr>
+        <tr>
+          <td>{{it.Description}}</td>
+          <td>${{ '%.2f'|format(it.Price) }}</td>
+          <td>{{it.Qty}}</td>
+          <td>${{ '%.2f'|format(it.Price * it.Qty) }}</td>
+        </tr>
         {% endfor %}
         <tr><td colspan="3"><strong>Total Quantity</strong></td><td>{{invoice_data.total_quantity}}</td></tr>
         <tr><td colspan="3"><strong>Subtotal</strong></td><td>${{ '%.2f'|format(invoice_data.subtotal) }}</td></tr>
@@ -1192,6 +1240,9 @@ def generate_invoice():
     selected_customer = selected_customer,
     customer_list     = customer_list,
     products          = products,
+    designs           = designs,
+    design_map        = design_map,
+    design_map_json   = design_map_json,
     adhoc_items       = adhoc_items,
     invoice_data      = invoice_data
 )
